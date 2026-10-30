@@ -29,17 +29,11 @@ func InputCustom(champ ChampFormulaire) gomponents.Node {
 func FormCustom(fields []ChampFormulaire) gomponents.Node {
 	var elements []gomponents.Node
 
-	// La boucle range sur une slice conserve l'ordre exact
 	for _, champ := range fields {
 		elements = append(elements, InputCustom(champ))
 	}
 
-	// Bouton d'envoi (si BoutonSubmit n'existe pas, on utilise Button directement)
-	elements = append(elements, Button(
-		Type("submit"),
-		Class("px-4 py-2 rounded text-white bg-blue-600 hover:bg-blue-700"),
-		gomponents.Text("Envoyer"),
-	))
+	elements = append(elements, BoutonSubmit("Envoyer"))
 
 	return Form(
 		// Attributs HTMX
@@ -47,7 +41,6 @@ func FormCustom(fields []ChampFormulaire) gomponents.Node {
 		gomponents.Attr("hx-target", "#reponse-serveur"),
 		Class("space-y-3"),
 
-		// On injecte tous les éléments générés dynamiquement
 		gomponents.Group(elements),
 	)
 }
