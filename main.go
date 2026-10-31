@@ -9,7 +9,8 @@ import (
 func main() {
 	// 1. Route pour afficher la page
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_ = pages.PageAccueil().Render(w)
+		// On passe r.URL.Path pour que la navbar sache quelle page est active !
+		_ = pages.PageAccueil(r.URL.Path).Render(w)
 	})
 
 	// 2. Route pour traiter le formulaire soumis
@@ -29,7 +30,7 @@ func main() {
 
 		// On renvoie le HTML qui va remplacer le contenu de #reponse-serveur
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(fmt.Sprintf("<span class='text-green-600'>Bonjour %s, formulaire bien reçu par le serveur ! 🚀</span>", prenom)))
+		_, _ = w.Write(fmt.Appendf(nil, "<span class='text-green-600'>Bonjour %s, formulaire bien reçu par le serveur ! 🚀</span>", prenom))
 	})
 
 	// Lancement du serveur

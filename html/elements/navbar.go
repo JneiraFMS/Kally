@@ -10,14 +10,21 @@ type NavbarElements struct {
 	Href  string
 }
 
-func NavbarCustom(elementList []NavbarElements) gomponents.Node {
+func NavbarCustom(elementList []NavbarElements, currentPath string) gomponents.Node {
 	var navItems []gomponents.Node
 
 	for _, item := range elementList {
+
+		isActive := item.Href == currentPath
+		linkClass := "hover:text-blue-600 transition-colors"
+		if isActive {
+			linkClass = "text-blue-600 font-bold"
+		}
+
 		navItems = append(navItems, Li(
 			A(
 				Href(item.Href),
-				Class("hover:text-blue-600 transition-colors"),
+				Class(linkClass),
 				gomponents.Text(item.Label),
 			),
 		))
@@ -26,7 +33,7 @@ func NavbarCustom(elementList []NavbarElements) gomponents.Node {
 	return Nav(Class("bg-white shadow-md px-6 py-4"),
 		Ol(
 			Class("flex items-center space-x-6 text-gray-700 font-medium"),
-			gomponents.Group(navItems), // <-- On utilise Group ici pour intégrer la slice
+			gomponents.Group(navItems),
 		),
 	)
 }

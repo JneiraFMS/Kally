@@ -14,13 +14,14 @@ var formFields = []elements.ChampFormulaire{
 	{Nom: "email", Type: "email", Label: "Votre adresse email :"},
 }
 
-var navElement = []elements.NavbarElements{
+var navElements = []elements.NavbarElements{
 	{Label: "Home", Href: "/"},
-	{Label: "Contact", Href: "contact"},
-	{Label: "About", Href: "about"},
+	{Label: "Contact", Href: "/contact"},
+	{Label: "About", Href: "/about"},
 }
 
-func PageAccueil() gomponents.Node {
+func PageAccueil(currentPath string) gomponents.Node {
+
 	return components.HTML5(components.HTML5Props{
 		Title:    "Formulaire avec Go",
 		Language: "fr",
@@ -29,7 +30,9 @@ func PageAccueil() gomponents.Node {
 			Script(Src("https://unpkg.com/htmx.org@1.9.10")), // Pour soumettre sans recharger
 		},
 		Body: []gomponents.Node{
-			elements.NavbarCustom(navElement),
+			// On passe la liste ET le chemin actuel ici :
+			elements.NavbarCustom(navElements, currentPath),
+
 			Div(Class("p-8 max-w-md mx-auto space-y-4"),
 				H1(Class("text-2xl font-bold"), gomponents.Text("Mon Formulaire Go")),
 
