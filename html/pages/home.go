@@ -1,47 +1,78 @@
 package pages
 
 import (
-	"grz/html/elements"
+	"grz/internal/kb"
 
 	"maragu.dev/gomponents"
-	"maragu.dev/gomponents/components"
 	. "maragu.dev/gomponents/html"
 )
 
-var formFields = []elements.ChampFormulaire{
-	{Nom: "prenom", Type: "text", Label: "Votre prénom :"},
-	{Nom: "nom", Type: "text", Label: "Votre nom :"},
-	{Nom: "email", Type: "email", Label: "Votre adresse email :"},
-}
+// PageAccueil affiche la page d'accueil : cartes des KB existantes.
+func PageAccueil(currentPath string, kbs []kb.KB) gomponents.Node {
+	var cards []gomponents.Node
+	for _, k := range kbs {
+		cards = append(cards, kbCard(k))
+	}
 
-var navElements = []elements.NavbarElements{
-	{Label: "Home", Href: "/"},
-	{Label: "Contact", Href: "/contact"},
-	{Label: "About", Href: "/about"},
-}
-
-func PageAccueil(currentPath string) gomponents.Node {
-
-	return components.HTML5(components.HTML5Props{
-		Title:    "Formulaire avec Go",
-		Language: "fr",
-		Head: []gomponents.Node{
-			Script(Src("https://cdn.tailwindcss.com")),
-			Script(Src("https://unpkg.com/htmx.org@1.9.10")), // Pour soumettre sans recharger
-		},
-		Body: []gomponents.Node{
-			// On passe la liste ET le chemin actuel ici :
-			elements.NavbarCustom(navElements, currentPath),
-
-			Div(Class("p-8 max-w-md mx-auto space-y-4"),
-				H1(Class("text-2xl font-bold"), gomponents.Text("Mon Formulaire Go")),
-
-				// Le formulaire
-				elements.FormCustom(formFields),
-
-				// Zone où s'affichera la réponse du serveur Go
-				Div(ID("reponse-serveur"), Class("text-gray-700 font-semibold")),
+	content := []gomponents.Node{
+		Div(Class("p-8 max-w-5xl mx-auto space-y-4"),
+			Div(Class("flex items-center justify-between"),
+				H1(Class("text-2xl font-bold"), gomponents.Text("Bases de connaissance")),
+				A(Href("/kb/new"),
+					Class("px-4 py-2 rounded text-white bg-blue-600 hover:bg-blue-700"),
+					gomponents.Text("+ Nouvelle KB"),
+				),
 			),
-		},
-	})
+		),
+	}
+
+	if len(cards) == 0 {
+		content = append(content,
+			Div(Class("max-w-5xl mx-auto px-8 pb-8"),
+				Div(Class("border border-dashed border-gray-300 rounded-lg p-10 text-center"),
+					P(Class("text-gray-500"), gomponents.Text("Aucune KB enregistrée. Créez-en une !")),
+					A(Href("/kb/new"),
+						Class("mt-3 inline-block text-blue-600 hover:underline"),
+						gomponents.Text("Créer une KB →"),
+					),
+				),
+			),
+		)
+	} else {
+		content = append(content,
+			Div(Class("max-w-5xl mx-auto px-8 pb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"),
+				gomponents.Group(cards),
+			),
+		)
+	}
+
+	return layout("GRZ - Bases de connaissance", currentPath, content)
+}
+
+// kbCard est la carte d'une KB : ID + extrait du message d'erreur,
+// cliquable vers la fiche détail.
+func kbCard(k kb.KB) gomponents.Node {
+	return A(
+		Href("/kb/detail?id="+k.ID),
+		Class("block border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition p-4 space-y-2"),
+		Div(Class("flex items-center justify-between"),
+			Span(Class("px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-sm font-mono font-semibold"),
+				gomponents.Text(k.ID),
+			),
+			Span(Class("text-gray-400 text-sm"), gomponents.Text("→")),
+		),
+		P(Class("text-gray-700 text-sm line-clamp-3"),
+			gomponents.Text(excerpt(k.Erreur, 120)),
+		),
+	)
+}
+
+// excerpt tronque un texte et ajoute "..." si besoin.
+func excerpt(text string, max int) string {
+	first := firstLine(text)
+	r := []rune(first)
+	if len(r) <= max {
+		return first
+	}
+	return string(r[:max]) + "..."
 }
