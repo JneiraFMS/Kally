@@ -19,14 +19,14 @@ var kbFormFields = []elements.ChampFormulaire{
 // PageKBCreate affiche le formulaire de création d'une KB.
 func PageKBCreate(currentPath string) gomponents.Node {
 	return layout("Créer une KB", currentPath, []gomponents.Node{
-		Div(Class("p-8 max-w-2xl mx-auto space-y-4"),
-			H1(Class("text-2xl font-bold"), gomponents.Text("Créer une KB")),
+		Div(Class("p-6 max-w-2xl mx-auto space-y-5"),
+			H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text("Créer une KB")),
 
 			// Le formulaire pointe vers POST /kb
 			elements.FormCustomWithAction(kbFormFields, "/kb", "Enregistrer"),
 
 			// Zone où s'affichera la réponse du serveur (htmx)
-			Div(ID("reponse-serveur"), Class("text-gray-700 font-semibold")),
+			Div(ID("reponse-serveur"), Class("text-g-text font-semibold")),
 		),
 	})
 }

@@ -8,48 +8,49 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// PageKBDetail affiche une KB comme une note Obsidian (vue lecture) :
-// titre H1, tags cliquables, sections H2, et les KB liées par tags.
+// PageKBDetail affiche une KB comme une note : titre mono, tags en pills
+// sous le titre, sections séparées par l'espace seul, KB liées.
 func PageKBDetail(currentPath string, k kb.KB, related []kb.KB) gomponents.Node {
-	sections := []gomponents.Node{noteSection("Erreur", bodyOrEmpty(k.Erreur))}
-
-	if len(k.Tags) > 0 {
-		sections = append(sections, noteSection("Tags", tagBadges(k.Tags)))
-	}
-
-	sections = append(sections,
+	sections := []gomponents.Node{
+		noteSection("Erreur", bodyOrEmpty(k.Erreur)),
 		noteSection("Notes", bodyOrEmpty(k.Notes)),
 		noteSection("Résolution", bodyOrEmpty(k.Resolution)),
 		relatedSection(related),
-	)
+	}
 
 	return layout("KB "+k.ID, currentPath, []gomponents.Node{
-		// Barre d'actions discrète (style Obsidian : interfaces en fond uni)
-		Div(Class("max-w-3xl mx-auto px-4 pt-6 flex justify-end gap-2"),
-			A(Href("/kb/edit?id="+k.ID),
-				Class("px-3 py-1.5 rounded-md border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-100"),
-				gomponents.Text("Modifier"),
-			),
-			A(Href("/kb/graph"),
-				Class("px-3 py-1.5 rounded-md border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-100"),
-				gomponents.Text("Graphe"),
-			),
-			A(Href("/kb"),
-				Class("px-3 py-1.5 rounded-md border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-100"),
-				gomponents.Text("← Liste"),
-			),
+		// Barre d'actions discrète (boutons secondaires sans bordure)
+		Div(Class("max-w-3xl mx-auto px-4 pt-5 flex justify-end gap-2"),
+			secondaryAction("/kb/edit?id="+k.ID, "Modifier"),
+			secondaryAction("/kb/graph", "Graphe"),
+			secondaryAction("/", "Retour"),
 		),
 
-		// La "note"
-		Note(k.ID, sections...),
+		Note(k.ID, k.Tags, sections...),
 	})
 }
 
-// Note est le conteneur papier d'une note Obsidian.
-func Note(titre string, sections ...gomponents.Node) gomponents.Node {
+// secondaryAction est un bouton d'action discret (bloc sans bordure).
+func secondaryAction(href, label string) gomponents.Node {
+	return A(Href(href),
+		Class("mx-2 mb-1 px-3.5 py-1.5 rounded-lg bg-g-block text-g-base hover:text-g-hi hover:bg-g-hover text-xs transition-colors"),
+		gomponents.Text(label),
+	)
+}
+
+// Note est le conteneur d'une note : titre mono + tags en pills, puis les sections.
+func Note(titre string, tags []string, sections ...gomponents.Node) gomponents.Node {
+	var sousTitre []gomponents.Node
+	if len(tags) > 0 {
+		sousTitre = append(sousTitre, tagBadges(tags))
+	}
+
 	return Div(Class("max-w-3xl mx-auto px-4 pb-10"),
-		Div(Class("bg-white ring-1 ring-gray-200 rounded-lg shadow-sm px-10 py-8 space-y-6"),
-			H1(Class("text-3xl font-bold text-gray-900"), gomponents.Text(titre)),
+		Div(Class("bg-g-widget rounded-xl px-8 py-8 space-y-6"),
+			Div(Class("space-y-2"),
+				H1(Class("font-mono text-xl font-semibold text-g-hi"), gomponents.Text(titre)),
+				gomponents.Group(sousTitre),
+			),
 			gomponents.Group(sections),
 		),
 	)
@@ -58,17 +59,16 @@ func Note(titre string, sections ...gomponents.Node) gomponents.Node {
 // bodyOrEmpty rend le corps d'une section texte ; vide → "— vide —".
 func bodyOrEmpty(texte string) gomponents.Node {
 	if strings.TrimSpace(texte) == "" {
-		return I(Class("text-gray-400"), gomponents.Text("— vide —"))
+		return I(Class("text-g-subdue"), gomponents.Text("— vide —"))
 	}
-	return Div(Class("text-[15px] leading-relaxed text-gray-800 whitespace-pre-wrap"), gomponents.Text(texte))
+	return Div(Class("leading-relaxed text-g-text whitespace-pre-wrap"), gomponents.Text(texte))
 }
 
-// noteSection rend une section "à la Obsidian" : H2 suivi du corps.
+// noteSection rend une section : petit titre gras + corps. Les sections sont
+// séparées par l'espace seul (pas de bordure) pour rester minimalistes.
 func noteSection(titre string, body gomponents.Node) gomponents.Node {
-	return Div(Class("space-y-1"),
-		H2(Class("text-xl font-bold text-gray-900 border-b border-gray-200 pb-1"),
-			gomponents.Text(titre),
-		),
+	return Div(Class("space-y-1.5"),
+		H2(Class("text-sm font-semibold text-g-hi"), gomponents.Text(titre)),
 		body,
 	)
 }
@@ -77,25 +77,24 @@ func noteSection(titre string, body gomponents.Node) gomponents.Node {
 func relatedSection(related []kb.KB) gomponents.Node {
 	if len(related) == 0 {
 		return noteSection("KB liées",
-			I(Class("text-gray-400"), gomponents.Text("Aucune KB liée par tag")),
+			I(Class("text-g-subdue"), gomponents.Text("Aucune KB liée par tag")),
 		)
 	}
 
 	var choices []gomponents.Node
 	for _, k := range related {
 		choices = append(choices,
-			Div(Class("py-1"),
+			Div(Class("py-1.5"),
 				A(Href("/kb/detail?id="+k.ID),
-					Class("font-mono text-blue-700 font-semibold hover:underline"),
+					Class("font-mono text-g-accent font-semibold hover:underline"),
 					gomponents.Text(k.ID),
 				),
-				Span(Class("text-gray-500 text-sm mx-2"), gomponents.Text("·")),
-				Span(Class("text-gray-700 text-sm"), gomponents.Text(firstLine(k.Erreur))),
+				Div(Class("text-g-base text-xs"), gomponents.Text(firstLine(k.Erreur))),
 			),
 		)
 	}
 
 	return noteSection("KB liées",
-		Div(Class("text-[15px] divide-y divide-gray-100"), gomponents.Group(choices)),
+		Div(Class("divide-y divide-g-sep"), gomponents.Group(choices)),
 	)
 }

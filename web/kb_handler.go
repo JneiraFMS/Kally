@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"grz/html/pages"
 	"grz/internal/kb"
@@ -20,7 +21,8 @@ func NewKBHandler(repo kb.Repository) *KBHandler {
 	return &KBHandler{repo: repo}
 }
 
-// Home affiche la page d'accueil avec les cartes des KB existantes.
+// Home affiche la page d'accueil avec les cartes des KB existantes,
+// filtrées par tag si ?tag=xxx est présent (page liste fusionnée ici).
 func (h *KBHandler) Home(w http.ResponseWriter, r *http.Request) {
 	kbs, err := h.repo.FindAll(r.Context())
 	if err != nil {
@@ -28,23 +30,22 @@ func (h *KBHandler) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = pages.PageAccueil(r.URL.Path, kbs).Render(w)
-}
-
-// List affiche la page listant toutes les KB, avec filtre optionnel ?tag=xxx.
-func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
-	kbs, err := h.repo.FindAll(r.Context())
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Filtre par tag ?tag=xxx
-	if tag := r.URL.Query().Get("tag"); tag != "" {
+	tag := r.URL.Query().Get("tag")
+	if tag != "" {
 		kbs = kb.FilterByTag(kbs, tag)
 	}
 
-	_ = pages.PageKBList(r.URL.Path, kbs).Render(w)
+	_ = pages.PageAccueil(r.URL.Path, kbs, tag).Render(w)
+}
+
+// List redirige vers l'accueil : la page liste a été fusionnée avec
+// l'accueil (cartes + filtre ?tag=). Conservée pour les anciens liens/bookmarks.
+func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
+	target := "/"
+	if tag := r.URL.Query().Get("tag"); tag != "" {
+		target = "/?tag=" + url.QueryEscape(tag)
+	}
+	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
 // ShowGraph affiche la vue graphe globale des KB (SVG).
@@ -96,19 +97,19 @@ func (h *KBHandler) saveForm(w http.ResponseWriter, r *http.Request, detailNav s
 	)
 	if err != nil {
 		writeMessage(w, http.StatusBadRequest,
-			fmt.Sprintf("<span class='text-red-600 font-semibold'>Données invalides : %s</span>", err))
+			fmt.Sprintf("<span class='text-g-negative font-semibold'>Données invalides : %s</span>", err))
 		return
 	}
 
 	if err := h.repo.Save(r.Context(), newKB); err != nil {
 		writeMessage(w, http.StatusInternalServerError,
-			fmt.Sprintf("<span class='text-red-600 font-semibold'>Erreur d'enregistrement : %s</span>", err))
+			fmt.Sprintf("<span class='text-g-negative font-semibold'>Erreur d'enregistrement : %s</span>", err))
 		return
 	}
 
 	writeMessage(w, http.StatusOK,
 		fmt.Sprintf(
-			"<span class='text-green-600 font-semibold'>KB %s enregistrée ✅ <a class='text-blue-600 underline' href='%s?id=%s'>Consulter</a></span>",
+			"<span class='text-g-positive font-semibold'>KB %s enregistrée ✅ <a class='text-g-accent underline' href='%s?id=%s'>Consulter</a></span>",
 			newKB.ID, detailNav, newKB.ID))
 }
 
@@ -122,11 +123,11 @@ func (h *KBHandler) fetch(w http.ResponseWriter, r *http.Request, id string) (*k
 		return kbFound, true
 	case errors.Is(err, kb.ErrNotFound):
 		writeMessage(w, http.StatusNotFound,
-			fmt.Sprintf("<span class='text-red-600 font-semibold'>KB %q introuvable</span>", id))
+			fmt.Sprintf("<span class='text-g-negative font-semibold'>KB %q introuvable</span>", id))
 		return nil, false
 	default:
 		writeMessage(w, http.StatusInternalServerError,
-			fmt.Sprintf("<span class='text-red-600 font-semibold'>Erreur : %s</span>", err))
+			fmt.Sprintf("<span class='text-g-negative font-semibold'>Erreur : %s</span>", err))
 		return nil, false
 	}
 }
@@ -144,7 +145,7 @@ func (h *KBHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	current := kb.ByID(all, id)
 	if current == nil {
 		writeMessage(w, http.StatusNotFound,
-			fmt.Sprintf("<span class='text-red-600 font-semibold'>KB %q introuvable</span>", id))
+			fmt.Sprintf("<span class='text-g-negative font-semibold'>KB %q introuvable</span>", id))
 		return
 	}
 

@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"slices"
@@ -163,7 +164,9 @@ func TestKBHandlerCreateSavesTags(t *testing.T) {
 	}
 }
 
-func TestKBHandlerListFiltersByTag(t *testing.T) {
+// TestKBHandlerHomeFiltersByTag : le filtre ?tag= vit sur l'accueil
+// (la page liste a été fusionnée avec l'accueil).
+func TestKBHandlerHomeFiltersByTag(t *testing.T) {
 	repo := newFakeRepo()
 	if err := seedKB(t, repo, "KB-0001", "kpi"); err != nil {
 		t.Fatal(err)
@@ -173,24 +176,56 @@ func TestKBHandlerListFiltersByTag(t *testing.T) {
 	}
 	h := NewKBHandler(repo)
 
-	req := httptest.NewRequest("GET", "/kb?tag=kpi", nil)
+	req := httptest.NewRequest("GET", "/?tag=kpi", nil)
 	w := httptest.NewRecorder()
-	h.List(w, req)
+	h.Home(w, req)
 
 	body := w.Body.String()
 	if !strings.Contains(body, "KB-0001") {
-		t.Errorf("List(filter kpi) n'affiche pas KB-0001")
+		t.Errorf("Home(filter kpi) n'affiche pas KB-0001")
 	}
 	if strings.Contains(body, "KB-0002") {
-		t.Errorf("List(filter kpi) affiche KB-0002 hors filtre")
+		t.Errorf("Home(filter kpi) affiche KB-0002 hors filtre")
+	}
+	if !strings.Contains(body, "Filtré par") {
+		t.Errorf("Home(filter kpi) n'affiche pas le tag de filtre actif")
 	}
 
 	// Sans filtre : toutes les KB
-	req = httptest.NewRequest("GET", "/kb", nil)
+	req = httptest.NewRequest("GET", "/", nil)
 	w = httptest.NewRecorder()
-	h.List(w, req)
+	h.Home(w, req)
 	if !strings.Contains(w.Body.String(), "KB-0002") {
-		t.Errorf("List(sans filtre) doit afficher toutes les KB")
+		t.Errorf("Home(sans filtre) doit afficher toutes les KB")
+	}
+}
+
+// TestKBHandlerListRedirectsToHome : /kb redirige vers l'accueil
+// (avec conservation du filtre ?tag= éventuel).
+func TestKBHandlerListRedirectsToHome(t *testing.T) {
+	h := NewKBHandler(newFakeRepo())
+
+	tests := []struct {
+		name     string
+		target   string
+		location string
+	}{
+		{name: "sans filtre", target: "/kb", location: "/"},
+		{name: "avec filtre", target: "/kb?tag=kpi", location: "/?tag=kpi"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", tt.target, nil)
+			w := httptest.NewRecorder()
+			h.List(w, req)
+
+			if w.Code != http.StatusSeeOther {
+				t.Errorf("List(%s) status = %d, want 303", tt.target, w.Code)
+			}
+			if loc := w.Header().Get("Location"); loc != tt.location {
+				t.Errorf("List(%s) Location = %q, want %q", tt.target, loc, tt.location)
+			}
+		})
 	}
 }
 

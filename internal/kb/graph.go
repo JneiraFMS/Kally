@@ -111,9 +111,11 @@ type GraphNode struct {
 
 // GraphEdge est une arête entre deux KB partageant au moins un tag
 // (relation bidirectionnelle : l'ordre A/B est normalisé par ID croissant).
+// Tags contient les tags communs aux deux KB, triés (affichés en tooltip).
 type GraphEdge struct {
-	A string
-	B string
+	A    string
+	B    string
+	Tags []string
 }
 
 // GraphNodes place chaque KB sur un cercle, triées par ID.
@@ -133,14 +135,15 @@ func GraphNodes(kbs []KB) []GraphNode {
 	return nodes
 }
 
-// GraphEdges retourne les arêtes entre KB partageant au moins un tag.
+// GraphEdges retourne les arêtes entre KB partageant au moins un tag,
+// avec les tags partagés.
 func GraphEdges(kbs []KB) []GraphEdge {
 	var edges []GraphEdge
 
 	for i, a := range kbs {
 		for _, b := range kbs[i+1:] {
-			if sharesTag(a, b) {
-				e := GraphEdge{A: a.ID, B: b.ID}
+			if common := sharedTags(a, b); len(common) > 0 {
+				e := GraphEdge{A: a.ID, B: b.ID, Tags: common}
 				if e.A > e.B {
 					e.A, e.B = e.B, e.A
 				}
@@ -151,13 +154,16 @@ func GraphEdges(kbs []KB) []GraphEdge {
 	return edges
 }
 
-func sharesTag(a, b KB) bool {
+// sharedTags retourne les tags communs aux deux KB, triés.
+func sharedTags(a, b KB) []string {
+	var common []string
 	for _, tag := range a.Tags {
 		if slices.Contains(b.Tags, tag) {
-			return true
+			common = append(common, tag)
 		}
 	}
-	return false
+	slices.Sort(common)
+	return common
 }
 
 // ByID retourne un pointeur sur la KB id dans la liste, ou nil si absente.

@@ -54,8 +54,8 @@ func TestPageKBDetailRendersNoteStyle(t *testing.T) {
 		t.Errorf("la section vide n'affiche pas la mention '— vide —'")
 	}
 
-	// Badge tag cliquable vers le filtre
-	if !strings.Contains(html, "/kb?tag=calcul") {
+	// Badge tag cliquable vers le filtre (migré sur /?tag=)
+	if !strings.Contains(html, "/?tag=calcul") {
 		t.Errorf("badge tag cliquable manquant")
 	}
 

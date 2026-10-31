@@ -5,14 +5,14 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// tagBadges rend les tags d'une KB en badges cliquables pointant vers le
-// filtre /kb?tag=xxx. Retourne une chaîne vide pour une KB sans tag.
+// tagBadges rend les tags d'une KB en pills neutres cliquables vers le
+// filtre /?tag=xxx. Vide pour une KB sans tag.
 func tagBadges(tags []string) gomponents.Node {
 	var badges []gomponents.Node
 	for _, tag := range tags {
 		badges = append(badges,
-			A(Href("/kb?tag="+tag),
-				Class("inline-block px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-medium hover:bg-blue-100"),
+			A(Href("/?tag="+tag),
+				Class("inline-block px-2.5 py-0.5 rounded-full bg-g-block text-g-base text-xs hover:text-g-hi hover:bg-g-hover transition-colors"),
 				gomponents.Text(tag),
 			),
 		)

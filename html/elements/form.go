@@ -14,18 +14,19 @@ type ChampFormulaire struct {
 	LectureSeule bool   // Champ non modifiable (ex: ID en modification)
 }
 
-// inputClass est la classe commune des champs de formulaire.
-const inputClass = "mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+// inputClass est la classe commune des champs de formulaire :
+// sans bordure (l'élévation vient du fond bloc), coins arrondis, focus discret.
+const inputClass = "mt-1 block w-full px-3.5 py-2.5 bg-g-block rounded-lg text-g-hi text-sm placeholder-g-subdue focus:outline-none focus:ring-2 focus:ring-g-sep"
 
 func InputCustom(champ ChampFormulaire) gomponents.Node {
 	label := Label(
-		Class("block text-sm font-medium text-gray-700"),
+		Class("block text-g-muted text-xs font-medium"),
 		gomponents.Text(champ.Label),
 	)
 	readOnly := gomponents.If(champ.LectureSeule,
 		gomponents.Group([]gomponents.Node{
 			gomponents.Attr("readonly"),
-			Class("bg-gray-100 text-gray-500"),
+			Class("bg-g-bg text-g-subdue cursor-not-allowed"),
 		}),
 	)
 
@@ -72,7 +73,7 @@ func formNode(fields []ChampFormulaire, action string, bouton string) gomponents
 		// Attributs HTMX
 		gomponents.Attr("hx-post", action),
 		gomponents.Attr("hx-target", "#reponse-serveur"),
-		Class("space-y-3"),
+		Class("space-y-4"),
 
 		gomponents.Group(elements),
 	)

@@ -130,6 +130,45 @@ func TestGraphEdgesSharedTagsOnly(t *testing.T) {
 	}
 }
 
+// TestGraphEdgesCarrySharedTags : chaque arête expose les tags partagés
+// (utilisés pour le tooltip du graphe).
+func TestGraphEdgesCarrySharedTags(t *testing.T) {
+	kbs := sampleGraph()
+
+	edges := GraphEdges(kbs)
+
+	for _, e := range edges {
+		if e.A == "KB-0001" && e.B == "KB-0002" {
+			if !slices.Equal(e.Tags, []string{"calcul"}) {
+				t.Errorf("Tags de l'arête KB-0001↔KB-0002 = %v, want [calcul]", e.Tags)
+			}
+			return
+		}
+	}
+	t.Fatalf("arête KB-0001↔KB-0002 manquante : %+v", edges)
+}
+
+// TestGraphEdgesSharedTagsSorted : plusieurs tags communs → liste triée.
+func TestGraphEdgesSharedTagsSorted(t *testing.T) {
+	a, err := NewKB("KB-A", "e", "", "", "zeta", "alpha")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+	b, err := NewKB("KB-B", "e", "", "", "alpha", "zeta")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+
+	edges := GraphEdges([]KB{a, b})
+
+	if len(edges) != 1 {
+		t.Fatalf("GraphEdges() = %d arêtes, want 1", len(edges))
+	}
+	if !slices.Equal(edges[0].Tags, []string{"alpha", "zeta"}) {
+		t.Errorf("Tags partagés = %v, want [alpha zeta]", edges[0].Tags)
+	}
+}
+
 func TestTagStatsEmpty(t *testing.T) {
 	if stats := TagStats(nil); len(stats) != 0 {
 		t.Errorf("TagStats(nil) = %+v, want vide", stats)
