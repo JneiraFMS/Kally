@@ -43,6 +43,7 @@ func PageKBList(currentPath string, kbs []kb.KB) gomponents.Node {
 				Tr(Class("border-b border-gray-200"),
 					Td(Class("px-4 py-2 font-mono"), gomponents.Text(k.ID)),
 					Td(Class("px-4 py-2"), gomponents.Text(firstLine(k.Erreur))),
+					Td(Class("px-4 py-2"), tagBadges(k.Tags)),
 					Td(Class("px-4 py-2 text-right space-x-3"),
 						A(Href("/kb/detail?id="+k.ID),
 							Class("text-blue-600 hover:underline"), gomponents.Text("Consulter")),
@@ -59,6 +60,7 @@ func PageKBList(currentPath string, kbs []kb.KB) gomponents.Node {
 					THead(
 						Th(Class("px-4 py-2"), gomponents.Text("ID")),
 						Th(Class("px-4 py-2"), gomponents.Text("Erreur")),
+						Th(Class("px-4 py-2"), gomponents.Text("Tags")),
 						Th(Class("px-4 py-2")),
 					),
 					TBody(gomponents.Group(rows)),

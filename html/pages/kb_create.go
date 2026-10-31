@@ -13,6 +13,7 @@ var kbFormFields = []elements.ChampFormulaire{
 	{Nom: "erreur", Type: "textarea", Label: "Message d'erreur :"},
 	{Nom: "notes", Type: "textarea", Label: "Notes :"},
 	{Nom: "resolution", Type: "textarea", Label: "Message de résolution :"},
+	{Nom: "tags", Type: "text", Label: "Tags (séparés par espace ou virgule) :"},
 }
 
 // PageKBCreate affiche le formulaire de création d'une KB.

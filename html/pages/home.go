@@ -49,12 +49,20 @@ func PageAccueil(currentPath string, kbs []kb.KB) gomponents.Node {
 	return layout("GRZ - Bases de connaissance", currentPath, content)
 }
 
-// kbCard est la carte d'une KB : ID + extrait du message d'erreur,
-// cliquable vers la fiche détail.
+// kbCard est la carte d'une KB : ID + extrait du message d'erreur.
+// Technique "stretched link" : la carte est un <div> et un lien invisible
+// (<a absolute inset-0>) couvre toute la carte, ce qui la rend cliquable
+// vers le détail SANS imbriquer de <a> dans un <a> (HTML invalide).
+// Les badges tags sont au-dessus de l'overlay (relative z-10) et restent
+// cliquables vers le filtre /kb?tag=xxx.
 func kbCard(k kb.KB) gomponents.Node {
-	return A(
-		Href("/kb/detail?id="+k.ID),
-		Class("block border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition p-4 space-y-2"),
+	return Div(
+		Class("relative border border-gray-200 rounded-lg shadow-sm hover:shadow-md hover:border-blue-300 transition p-4 space-y-2"),
+		// Lien invisible couvrant toute la carte
+		A(
+			Href("/kb/detail?id="+k.ID),
+			Class("absolute inset-0 rounded-lg"),
+		),
 		Div(Class("flex items-center justify-between"),
 			Span(Class("px-2 py-0.5 rounded bg-blue-50 text-blue-700 text-sm font-mono font-semibold"),
 				gomponents.Text(k.ID),
@@ -64,6 +72,7 @@ func kbCard(k kb.KB) gomponents.Node {
 		P(Class("text-gray-700 text-sm line-clamp-3"),
 			gomponents.Text(excerpt(k.Erreur, 120)),
 		),
+		Div(Class("relative z-10"), tagBadges(k.Tags)),
 	)
 }
 

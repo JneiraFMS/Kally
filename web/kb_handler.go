@@ -31,7 +31,7 @@ func (h *KBHandler) Home(w http.ResponseWriter, r *http.Request) {
 	_ = pages.PageAccueil(r.URL.Path, kbs).Render(w)
 }
 
-// List affiche la page listant toutes les KB.
+// List affiche la page listant toutes les KB, avec filtre optionnel ?tag=xxx.
 func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
 	kbs, err := h.repo.FindAll(r.Context())
 	if err != nil {
@@ -39,7 +39,23 @@ func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Filtre par tag ?tag=xxx
+	if tag := r.URL.Query().Get("tag"); tag != "" {
+		kbs = kb.FilterByTag(kbs, tag)
+	}
+
 	_ = pages.PageKBList(r.URL.Path, kbs).Render(w)
+}
+
+// ShowGraph affiche la vue graphe globale des KB (SVG).
+func (h *KBHandler) ShowGraph(w http.ResponseWriter, r *http.Request) {
+	kbs, err := h.repo.FindAll(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	_ = pages.PageKBGraph(r.URL.Path, kbs).Render(w)
 }
 
 // ShowNewForm affiche le formulaire de création.
@@ -49,7 +65,7 @@ func (h *KBHandler) ShowNewForm(w http.ResponseWriter, r *http.Request) {
 
 // Create enregistre une KB soumise par le formulaire (réponse HTMX partielle).
 func (h *KBHandler) Create(w http.ResponseWriter, r *http.Request) {
-	h.saveForm(w, r, "")
+	h.saveForm(w, r, "/kb/detail")
 }
 
 // ShowEditForm affiche le formulaire de modification pré-rempli.
@@ -68,7 +84,6 @@ func (h *KBHandler) UpdateForm(w http.ResponseWriter, r *http.Request) {
 }
 
 // saveForm factorise Create et UpdateForm.
-// redirect est le lien "Consulter" affiché après succès (détail ou liste).
 func (h *KBHandler) saveForm(w http.ResponseWriter, r *http.Request, detailNav string) {
 	_ = r.ParseForm()
 
@@ -77,10 +92,11 @@ func (h *KBHandler) saveForm(w http.ResponseWriter, r *http.Request, detailNav s
 		r.FormValue("erreur"),
 		r.FormValue("notes"),
 		r.FormValue("resolution"),
+		r.FormValue("tags"),
 	)
 	if err != nil {
 		writeMessage(w, http.StatusBadRequest,
-			fmt.Sprintf("<span class='text-red-600 font-semibold'>Identifiant invalide : %s</span>", err))
+			fmt.Sprintf("<span class='text-red-600 font-semibold'>Données invalides : %s</span>", err))
 		return
 	}
 
@@ -115,14 +131,25 @@ func (h *KBHandler) fetch(w http.ResponseWriter, r *http.Request, id string) (*k
 	}
 }
 
-// Detail affiche la fiche complète d'une KB.
+// Detail affiche la fiche complète d'une KB avec ses KB liées par tags.
 func (h *KBHandler) Detail(w http.ResponseWriter, r *http.Request) {
-	kbFound, ok := h.fetch(w, r, r.URL.Query().Get("id"))
-	if !ok {
+	// Le graphe est construit depuis l'ensemble des KB du repository.
+	all, err := h.repo.FindAll(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	_ = pages.PageKBDetail(r.URL.Path, *kbFound).Render(w)
+	id := r.URL.Query().Get("id")
+	current := kb.ByID(all, id)
+	if current == nil {
+		writeMessage(w, http.StatusNotFound,
+			fmt.Sprintf("<span class='text-red-600 font-semibold'>KB %q introuvable</span>", id))
+		return
+	}
+
+	related := kb.Related(all, *current)
+	_ = pages.PageKBDetail(r.URL.Path, *current, related).Render(w)
 }
 
 // writeMessage écrit une réponse HTML partielle (échange HTMX).

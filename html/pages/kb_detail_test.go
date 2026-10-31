@@ -21,12 +21,16 @@ func renderNode(t *testing.T, n gomponents.Node) string {
 }
 
 func TestPageKBDetailRendersNoteStyle(t *testing.T) {
-	k, err := kb.NewKB("KB-0001", "Division par zéro", "", "Vérifier le diviseur")
+	k, err := kb.NewKB("KB-0001", "Division par zéro", "", "Vérifier le diviseur", "calcul")
 	if err != nil {
 		t.Fatalf("NewKB(): %v", err)
 	}
+	related := []kb.KB{}
+	if k2, err := kb.NewKB("KB-0002", "Autre problème", "n", "r", "calcul"); err == nil {
+		related = append(related, k2)
+	}
 
-	html := renderNode(t, PageKBDetail("/kb/detail", k))
+	html := renderNode(t, PageKBDetail("/kb/detail", k, related))
 
 	// Titre de la note en H1
 	if !strings.Contains(html, ">KB-0001</h1>") {
@@ -48,6 +52,16 @@ func TestPageKBDetailRendersNoteStyle(t *testing.T) {
 	// Section vide : mention "— vide —"
 	if !strings.Contains(html, "— vide —") {
 		t.Errorf("la section vide n'affiche pas la mention '— vide —'")
+	}
+
+	// Badge tag cliquable vers le filtre
+	if !strings.Contains(html, "/kb?tag=calcul") {
+		t.Errorf("badge tag cliquable manquant")
+	}
+
+	// KB liée par tag : lien bidirectionnel vers KB-0002
+	if !strings.Contains(html, "/kb/detail?id=KB-0002") {
+		t.Errorf("lien vers KB liée manquant")
 	}
 
 	// Pas les anciens blocs gris mono

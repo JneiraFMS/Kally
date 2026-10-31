@@ -3,6 +3,7 @@ package pages
 import (
 	"grz/html/elements"
 	"grz/internal/kb"
+	"strings"
 
 	"maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
@@ -15,6 +16,7 @@ func PageKBEdit(currentPath string, k kb.KB) gomponents.Node {
 		{Nom: "erreur", Type: "textarea", Label: "Message d'erreur :", Valeur: k.Erreur},
 		{Nom: "notes", Type: "textarea", Label: "Notes :", Valeur: k.Notes},
 		{Nom: "resolution", Type: "textarea", Label: "Message de résolution :", Valeur: k.Resolution},
+		{Nom: "tags", Type: "text", Label: "Tags (séparés par espace ou virgule) :", Valeur: strings.Join(k.Tags, " ")},
 	}
 
 	return layout("Modifier "+k.ID, currentPath, []gomponents.Node{

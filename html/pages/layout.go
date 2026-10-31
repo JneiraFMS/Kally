@@ -11,6 +11,7 @@ import (
 var navElements = []elements.NavbarElements{
 	{Label: "Home", Href: "/"},
 	{Label: "KB", Href: "/kb"},
+	{Label: "Graphe", Href: "/kb/graph"},
 }
 
 // layout assemble la structure HTML commune (head, scripts, navbar).

@@ -24,6 +24,7 @@ func main() {
 
 	// Pages KB
 	mux.HandleFunc("GET /kb", kbHandler.List)
+	mux.HandleFunc("GET /kb/graph", kbHandler.ShowGraph)
 	mux.HandleFunc("GET /kb/new", kbHandler.ShowNewForm)
 	mux.HandleFunc("POST /kb", kbHandler.Create)
 	mux.HandleFunc("GET /kb/detail", kbHandler.Detail)

@@ -5,13 +5,14 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
 
-func mustKB(t *testing.T, id, erreur, notes, resolution string) KB {
+func mustKB(t *testing.T, id, erreur, notes, resolution string, tags ...string) KB {
 	t.Helper()
-	kb, err := NewKB(id, erreur, notes, resolution)
+	kb, err := NewKB(id, erreur, notes, resolution, tags...)
 	if err != nil {
 		t.Fatalf("NewKB(%q) inattendu: %v", id, err)
 	}
@@ -133,5 +134,74 @@ func TestMDRepositoryFindAllIgnoresNonMarkdown(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].ID != "KB-0001" {
 		t.Errorf("FindAll() = %+v, want 1 KB KB-0001", got)
+	}
+}
+
+func TestMDRepositorySaveWritesFrontMatter(t *testing.T) {
+	dir := t.TempDir()
+	repo := NewMDRepository(dir)
+
+	want := mustKB(t, "KB-0001", "e", "n", "r", "incident", "kpi")
+	if err := repo.Save(context.Background(), want); err != nil {
+		t.Fatalf("Save() inattendu: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dir, "KB-0001.md"))
+	if err != nil {
+		t.Fatalf("lecture: %v", err)
+	}
+	content := string(data)
+	if !strings.HasPrefix(content, "---\ntags: [incident, kpi]\n---\n") {
+		t.Errorf("front matter manquant en tête de fichier:\n%s", content)
+	}
+}
+
+func TestMDRepositoryRoundTripTags(t *testing.T) {
+	dir := t.TempDir()
+	repo := NewMDRepository(dir)
+	ctx := context.Background()
+
+	want := mustKB(t, "KB-0002", "e", "n", "r", "incident", "calcul")
+	if err := repo.Save(ctx, want); err != nil {
+		t.Fatalf("Save() inattendu: %v", err)
+	}
+
+	got, err := repo.FindByID(ctx, "KB-0002")
+	if err != nil {
+		t.Fatalf("FindByID() inattendu: %v", err)
+	}
+	if !slices.Equal(got.Tags, []string{"incident", "calcul"}) {
+		t.Errorf("FindByID() Tags = %v, want [incident calcul]", got.Tags)
+	}
+
+	all, err := repo.FindAll(ctx)
+	if err != nil {
+		t.Fatalf("FindAll() inattendu: %v", err)
+	}
+	if !slices.Equal(all[0].Tags, []string{"incident", "calcul"}) {
+		t.Errorf("FindAll() Tags = %v, want [incident calcul]", all[0].Tags)
+	}
+}
+
+func TestMDRepositoryBackwardCompatibleWithoutFrontMatter(t *testing.T) {
+	dir := t.TempDir()
+	repo := NewMDRepository(dir)
+
+	// Fichier ancien format (sans front matter) écrit à la main
+	content := "---\nnote: autre chose\n---\n# KB-OLD\n\n## Erreur\nancienne\n\n## Notes\nn\n\n## Résolution\nr\n"
+	// NB: "note:" dans le front matter doit être ignoré (pas de tags)
+	if err := os.WriteFile(filepath.Join(dir, "KB-OLD.md"), []byte(content), 0o644); err != nil {
+		t.Fatalf("écriture: %v", err)
+	}
+
+	got, err := repo.FindByID(context.Background(), "KB-OLD")
+	if err != nil {
+		t.Fatalf("FindByID() inattendu: %v", err)
+	}
+	if len(got.Tags) != 0 {
+		t.Errorf("FindByID() Tags = %v, want vide (pas de front matter tags)", got.Tags)
+	}
+	if got.Erreur != "ancienne" {
+		t.Errorf("FindByID() Erreur = %q, want \"ancienne\"", got.Erreur)
 	}
 }
