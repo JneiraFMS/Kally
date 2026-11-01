@@ -56,23 +56,27 @@ func mustCardKB(t *testing.T, id string, tags ...string) kb.KB {
 	return k
 }
 
-// TestLayoutInjectsGlancePalette : le thème doit être chargé
-// (config Tailwind inline contenant la palette g-*), à la Solarized :
-// fond #002b36 (base03) + accent jaune délavé #b58900.
+// TestLayoutInjectsGlancePalette : le thème est chargé depuis la feuille
+// locale /assets/tailwind.css (générée depuis tailwind.config.js qui porte
+// la palette Solarized) : plus de CDN JS (offline, pas de FOUC).
 func TestLayoutInjectsGlancePalette(t *testing.T) {
 	html := renderedPage(t, layout("T", "/", nil))
 
-	if !strings.Contains(html, "tailwind.config") {
-		t.Errorf("la config Tailwind (palette) n'est pas injectée dans le head")
+	if strings.Contains(html, "cdn.tailwindcss.com") {
+		t.Errorf("le CDN Tailwind est encore référencé (mode dev, FOUC, offline impossible)")
 	}
-	for _, token := range []string{"g-accent", "g-bg", "g-widget"} {
-		if !strings.Contains(html, token) {
-			t.Errorf("couleur %q absente de la palette Tailwind", token)
-		}
+	if !strings.Contains(html, `<link rel="stylesheet" href="/assets/tailwind.css">`) {
+		t.Errorf("la feuille locale /assets/tailwind.css n'est pas chargée:\n%s", html)
 	}
-	for _, hex := range []string{"#002b36", "#b58900", "#93a1a1"} {
+	// La palette inline (runtime CDN) ne doit plus être injectée : la
+	// source de vérité est tailwind.config.js, testée par palette_test.
+	if strings.Contains(html, "tailwind.config") {
+		t.Errorf("config Tailwind JS runtime encore injectée")
+	}
+	// Style solarisé du body toujours en place
+	for _, hex := range []string{"#002b36", "#93a1a1"} {
 		if !strings.Contains(html, hex) {
-			t.Errorf("couleur Solarized %q absente de la palette", hex)
+			t.Errorf("couleur Solarized %q absente du style body", hex)
 		}
 	}
 }

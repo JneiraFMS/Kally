@@ -7,12 +7,13 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
-// kbFormFields décrit le formulaire de création/modification d'une KB.
+// kbFormFields décrit le formulaire de création d'une KB. Notes et
+// Résolution acceptent le markdown ; Erreur est une trace (mono, 8 lignes).
 var kbFormFields = []elements.ChampFormulaire{
 	{Nom: "id", Type: "text", Label: "Identifiant de la KB (ex: KB-0001) :"},
-	{Nom: "erreur", Type: "textarea", Label: "Message d'erreur :"},
-	{Nom: "notes", Type: "textarea", Label: "Notes :"},
-	{Nom: "resolution", Type: "textarea", Label: "Message de résolution :"},
+	{Nom: "erreur", Type: "textarea", Label: "Message d'erreur :", Mono: true, Rows: 8},
+	{Nom: "notes", Type: "textarea", Label: "Notes (markdown) :", Rows: 6},
+	{Nom: "resolution", Type: "textarea", Label: "Résolution (markdown) :", Rows: 6},
 	{Nom: "tags", Type: "text", Label: "Tags (séparés par espace ou virgule) :"},
 }
 

@@ -19,6 +19,9 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	// Feuille de styles locale (Tailwind généré), embarquée dans le binaire
+	mux.HandleFunc("GET /assets/tailwind.css", web.ServeStylesheet)
+
 	// Page d'accueil : cartes des KB existantes
 	mux.HandleFunc("GET /{$}", kbHandler.Home)
 
@@ -30,6 +33,7 @@ func main() {
 	mux.HandleFunc("GET /kb/detail", kbHandler.Detail)
 	mux.HandleFunc("GET /kb/edit", kbHandler.ShowEditForm)
 	mux.HandleFunc("POST /kb/edit", kbHandler.UpdateForm)
+	mux.HandleFunc("POST /kb/delete", kbHandler.Delete)
 
 	// Affiche où iront les fichiers .md (relatif au répertoire de lancement)
 	absDir, err := filepath.Abs(kbDataDir)

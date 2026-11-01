@@ -27,6 +27,11 @@ func (f *fakeRepo) Save(_ context.Context, k kb.KB) error {
 	return nil
 }
 
+func (f *fakeRepo) Exists(_ context.Context, id string) (bool, error) {
+	_, ok := f.saved[id]
+	return ok, nil
+}
+
 func (f *fakeRepo) FindAll(_ context.Context) ([]kb.KB, error) {
 	kbs := []kb.KB{}
 	for _, kb := range f.saved {
@@ -42,6 +47,14 @@ func (f *fakeRepo) FindByID(_ context.Context, id string) (*kb.KB, error) {
 	return nil, fmt.Errorf("kb: %w: %s", kb.ErrNotFound, id)
 }
 
+func (f *fakeRepo) Delete(_ context.Context, id string) error {
+	if _, ok := f.saved[id]; !ok {
+		return fmt.Errorf("kb: %w: %s", kb.ErrNotFound, id)
+	}
+	delete(f.saved, id)
+	return nil
+}
+
 func TestKBHandlerCreateSavesKB(t *testing.T) {
 	repo := newFakeRepo()
 	h := NewKBHandler(repo)
@@ -54,6 +67,7 @@ func TestKBHandlerCreateSavesKB(t *testing.T) {
 	}
 	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true") // formulaire htmx
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
@@ -63,6 +77,152 @@ func TestKBHandlerCreateSavesKB(t *testing.T) {
 	}
 	if _, ok := repo.saved["KB-0001"]; !ok {
 		t.Errorf("Create() n'a pas sauvegardé la KB, saved = %v", repo.saved)
+	}
+	// Après enregistrement : navigation vers la fiche (htmx reçoit l'ordre
+	// via l'en-tête HX-Redirect).
+	if loc := w.Header().Get("HX-Redirect"); loc != "/kb/detail?id=KB-0001" {
+		t.Errorf("Create() HX-Redirect = %q, want /kb/detail?id=KB-0001", loc)
+	}
+}
+
+// TestKBHandlerCreateRedirectsNativeFlow : sans htmx (formulaire natif),
+// l'enregistrement se termine par une redirection 303 vers la fiche.
+func TestKBHandlerCreateRedirectsNativeFlow(t *testing.T) {
+	repo := newFakeRepo()
+	h := NewKBHandler(repo)
+
+	form := url.Values{"id": {"KB-0001"}, "erreur": {"e"}, "notes": {"n"}, "resolution": {"r"}}
+	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("Create() status = %d, want 303", w.Code)
+	}
+	if loc := w.Header().Get("Location"); loc != "/kb/detail?id=KB-0001" {
+		t.Errorf("Create() Location = %q, want /kb/detail?id=KB-0001", loc)
+	}
+}
+
+// TestKBHandlerCreateRefusesDuplicateID : créer avec un ID existant est
+// refusé (le Save n'écrase pas) avec un message suggérant la modification.
+func TestKBHandlerCreateRefusesDuplicateID(t *testing.T) {
+	repo := seedRepo(t, "KB-0001")
+	original := repo.saved["KB-0001"]
+	h := NewKBHandler(repo)
+
+	form := url.Values{"id": {"KB-0001"}, "erreur": {"NOUVEAU CONTENU"}, "notes": {"n"}, "resolution": {"r"}}
+	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("Create() status = %d, want 409", w.Code)
+	}
+	if got := repo.saved["KB-0001"]; got.Erreur != original.Erreur {
+		t.Errorf("Create() a écrasé la KB existante: %q → %q", original.Erreur, got.Erreur)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "existe déjà") {
+		t.Errorf("Create() sans message de doublon: %s", body)
+	}
+	if !strings.Contains(body, "/kb/edit?id=KB-0001") {
+		t.Errorf("Create() sans lien vers la modification: %s", body)
+	}
+}
+
+// TestKBHandlerErrorPagesEscapeInput : les IDs non validés passés en query
+// ne doivent jamais apparaître comme HTML brut dans les pages d'erreur.
+func TestKBHandlerErrorPagesEscapeInput(t *testing.T) {
+	repo := newFakeRepo()
+	h := NewKBHandler(repo)
+
+	payload := `<img src=x onerror=alert(1)>`
+
+	req := httptest.NewRequest("GET", "/kb/detail?id="+url.QueryEscape(payload), nil)
+	w := httptest.NewRecorder()
+	h.Detail(w, req)
+	body := w.Body.String()
+	if strings.Contains(body, "<img ") {
+		t.Errorf("Detail() injecte du HTML brut dans le message 404: %s", body)
+	}
+	if !strings.Contains(body, "&lt;img src=x onerror=alert(1)&gt;") {
+		t.Errorf("Detail() n'échappe pas le texte du message: %s", body)
+	}
+
+	// Même exigence sur la page d'édition introuvable
+	req = httptest.NewRequest("GET", "/kb/edit?id="+url.QueryEscape(payload), nil)
+	w = httptest.NewRecorder()
+	h.ShowEditForm(w, req)
+	if strings.Contains(w.Body.String(), "<img ") {
+		t.Errorf("ShowEditForm() injecte du HTML brut dans le message 404")
+	}
+}
+
+// TestKBHandlerCreatePreservesTagsValidation : un tag invalide reste rejeté.
+func TestKBHandlerCreatePreservesTagsValidation(t *testing.T) {
+	repo := newFakeRepo()
+	h := NewKBHandler(repo)
+
+	form := url.Values{"id": {"KB-0001"}, "erreur": {"e"}, "notes": {"n"}, "resolution": {"r"}, "tags": {"bad tag!"}}
+	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Create() status = %d, want 400", w.Code)
+	}
+	if len(repo.saved) != 0 {
+		t.Errorf("Create() a sauvegardé une KB invalide: %v", repo.saved)
+	}
+}
+
+// TestKBHandlerDeleteRemovesKB : POST /kb/delete supprime la KB et ramène
+// sur l'accueil.
+func TestKBHandlerDeleteRemovesKB(t *testing.T) {
+	repo := seedRepo(t, "KB-0001", "KB-0002")
+	h := NewKBHandler(repo)
+
+	form := url.Values{"id": {"KB-0001"}}
+	req := httptest.NewRequest("POST", "/kb/delete", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.Delete(w, req)
+
+	if w.Code != http.StatusSeeOther {
+		t.Errorf("Delete() status = %d, want 303", w.Code)
+	}
+	if loc := w.Header().Get("Location"); loc != "/" {
+		t.Errorf("Delete() Location = %q, want /", loc)
+	}
+	if _, ok := repo.saved["KB-0001"]; ok {
+		t.Errorf("Delete() KB-0001 toujours présent: %v", repo.saved)
+	}
+	if _, ok := repo.saved["KB-0002"]; !ok {
+		t.Errorf("Delete() a supprimé une autre KB: %v", repo.saved)
+	}
+}
+
+// TestKBHandlerDeleteMissingKB : supprimer une KB absente répond 404.
+func TestKBHandlerDeleteMissingKB(t *testing.T) {
+	h := NewKBHandler(newFakeRepo())
+
+	form := url.Values{"id": {"KB-INCONNU"}}
+	req := httptest.NewRequest("POST", "/kb/delete", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.Delete(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("Delete() status = %d, want 404", w.Code)
 	}
 }
 
@@ -151,6 +311,7 @@ func TestKBHandlerCreateSavesTags(t *testing.T) {
 	}
 	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true") // formulaire htmx
 	w := httptest.NewRecorder()
 
 	h.Create(w, req)
