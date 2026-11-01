@@ -81,7 +81,7 @@ for (var i = 0; i < nodes.length; i++) {
 // partagé (relation bidirectionnelle), sans librairie externe (SVG inline).
 func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 	content := []gomponents.Node{
-		Div(Class("p-6 max-w-3xl mx-auto space-y-4 flex items-center justify-between"),
+		Div(Class("max-w-5xl mx-auto px-6 py-6 space-y-4 flex items-center justify-between"),
 			H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text("Graphe des KB")),
 			A(Href("/"),
 				Class("px-3.5 py-1.5 rounded-lg bg-g-block text-g-base hover:text-g-hi hover:bg-g-hover text-xs transition-colors"),
@@ -92,7 +92,7 @@ func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 
 	if len(kbs) == 0 {
 		content = append(content,
-			Div(Class("max-w-3xl mx-auto px-6 pb-8"),
+			Div(Class("max-w-5xl mx-auto px-6 pb-8"),
 				P(Class("text-g-base"), gomponents.Text("Aucune KB : le graphe est vide.")),
 			),
 		)
@@ -110,8 +110,8 @@ func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 	}
 
 	content = append(content,
-		Div(Class("max-w-3xl mx-auto px-6 pb-8 space-y-3"),
-			Div(Class("bg-g-widget rounded-xl p-8 overflow-x-auto"),
+		Div(Class("max-w-5xl mx-auto px-6 pb-8 space-y-3"),
+			Div(Class("max-w-3xl bg-g-widget rounded-xl p-8 overflow-x-auto"),
 				gomponents.El("svg",
 					gomponents.Attr("viewBox", "0 0 1000 1000"),
 					gomponents.Attr("class", "w-full h-auto"),

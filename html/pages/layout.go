@@ -78,7 +78,8 @@ button.addEventListener("click", function () {
 // clavier visible) et styles markdown des fiches (.md) — consommés via les
 // var(--g-*). La feuille des classes utilitaires, générée hors-ligne par
 // tools/build-css.sh, est servie à /assets/tailwind.css.
-const glanceBodyStyle = `body {
+const glanceBodyStyle = `html { scrollbar-gutter: stable; }
+body {
 	background-color: var(--g-bg);
 	color: var(--g-text);
 	font: 14px/1.6 ui-sans-serif, system-ui, sans-serif;

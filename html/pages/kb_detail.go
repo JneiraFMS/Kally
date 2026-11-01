@@ -21,11 +21,13 @@ func PageKBDetail(currentPath string, k kb.KB, related []kb.KB) gomponents.Node 
 	return layout("KB "+k.ID, currentPath, []gomponents.Node{
 		// Barre d'actions discrète (boutons secondaires sans bordure,
 		// suppression en rouge avec confirmation).
-		Div(Class("max-w-3xl mx-auto px-4 pt-5 flex justify-end gap-2"),
-			secondaryAction("/kb/edit?id="+k.ID, "Modifier"),
-			secondaryAction("/kb/graph", "Graphe"),
-			secondaryAction("/", "Retour"),
-			deleteButton(k.ID),
+		Div(Class("max-w-5xl mx-auto px-6 pt-5"),
+			Div(Class("max-w-3xl flex justify-end gap-2"),
+				secondaryAction("/kb/edit?id="+k.ID, "Modifier"),
+				secondaryAction("/kb/graph", "Graphe"),
+				secondaryAction("/", "Retour"),
+				deleteButton(k.ID),
+			),
 		),
 
 		Note(k.ID, k.Tags, sections...),
@@ -66,8 +68,8 @@ func Note(titre string, tags []string, sections ...gomponents.Node) gomponents.N
 		sousTitre = append(sousTitre, tagBadges(tags))
 	}
 
-	return Div(Class("max-w-3xl mx-auto px-4 pb-10"),
-		Div(Class("bg-g-widget rounded-xl px-8 py-8 space-y-6"),
+	return Div(Class("max-w-5xl mx-auto px-6 pb-10"),
+		Div(Class("max-w-3xl bg-g-widget rounded-xl px-8 py-8 space-y-6"),
 			Div(Class("space-y-2"),
 				H1(Class("font-mono text-xl font-semibold text-g-hi"), gomponents.Text(titre)),
 				gomponents.Group(sousTitre),

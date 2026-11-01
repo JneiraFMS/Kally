@@ -108,6 +108,9 @@ func TestLayoutBodyStyleSheet(t *testing.T) {
 	if !strings.Contains(css, ":focus-visible") {
 		t.Errorf("la feuille <style> ne définit pas de focus-visible")
 	}
+	if !strings.Contains(css, "scrollbar-gutter: stable") {
+		t.Errorf("la largeur du viewport change selon la présence de scrollbar")
+	}
 	// L'attribut fantôme style="body{...} ne doit plus exister
 	if strings.Contains(html, `style="body{`) {
 		t.Errorf("attribut style fantôme toujours présent dans le head")
@@ -121,6 +124,33 @@ func TestPageAccueilNoNestedAnchors(t *testing.T) {
 	}
 
 	noNestedAnchors(t, renderedPage(t, PageAccueil("/", kbs, "")))
+}
+
+// TestPageFramesAlignWithNavbarLogo : la navbar et la zone de contenu
+// principale partagent le même cadre max-w-5xl + gutter px-6, quelle que
+// soit la page. Les contenus plus étroits restent contraints à droite, mais
+// ne sont plus centrés sous un logo décalé.
+func TestPageFramesAlignWithNavbarLogo(t *testing.T) {
+	k := mustCardKB(t, "KB-0001", "demo")
+	pages := []struct {
+		name string
+		node gomponents.Node
+	}{
+		{name: "accueil", node: PageAccueil("/", []kb.KB{k}, "")},
+		{name: "création", node: PageKBCreate("/kb/new")},
+		{name: "édition", node: PageKBEdit("/kb/edit", k)},
+		{name: "détail", node: PageKBDetail("/kb/detail", k, nil)},
+		{name: "graphe", node: PageKBGraph("/kb/graph", []kb.KB{k})},
+	}
+
+	for _, tt := range pages {
+		t.Run(tt.name, func(t *testing.T) {
+			html := renderedPage(t, tt.node)
+			if strings.Count(html, `max-w-5xl mx-auto px-6`) < 2 {
+				t.Errorf("navbar et contenu ne partagent pas le cadre max-w-5xl/px-6:\n%s", html)
+			}
+		})
+	}
 }
 
 func TestOtherPagesNoNestedAnchors(t *testing.T) {

@@ -73,13 +73,16 @@ func NavbarCustom(elementList []NavbarElements, currentPath string) gomponents.N
 		))
 	}
 
-	return Nav(Class("bg-g-widget px-6"),
-		Div(Class("flex items-center justify-between max-w-5xl mx-auto"),
-			// Logo GRZ (graphe de KB liées) vers l'accueil
-			A(Href("/"),
-				Class("py-3 flex items-center text-g-hi hover:opacity-80 transition-opacity"),
-				gomponents.Attr("aria-label", "Accueil"),
-				logoSVG(),
+	return Nav(Class("bg-g-widget"),
+		Div(Class("max-w-5xl mx-auto px-6 flex items-center justify-between"),
+			// Logo GRZ — cellule de largeur fixe pour que sa position ne
+			// bouge jamais quelle que soit la page
+			Div(Class("flex items-center w-10 shrink-0"),
+				A(Href("/"),
+					Class("py-3 flex items-center text-g-hi hover:opacity-80 transition-opacity"),
+					gomponents.Attr("aria-label", "Accueil"),
+					logoSVG(),
+				),
 			),
 			Div(Class("flex items-center gap-6"),
 				Ol(
@@ -91,6 +94,7 @@ func NavbarCustom(elementList []NavbarElements, currentPath string) gomponents.N
 					Type("button"),
 					ID("theme-toggle"),
 					gomponents.Attr("aria-label", "Changer de thème"),
+					Class("py-3"),
 					gomponents.Text("◐"),
 				),
 			),

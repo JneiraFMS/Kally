@@ -77,7 +77,7 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 	}
 
 	content := []gomponents.Node{
-		Div(Class("p-6 max-w-5xl mx-auto space-y-4"), gomponents.Group(header)),
+		Div(Class("max-w-5xl mx-auto px-6 py-6 space-y-4"), gomponents.Group(header)),
 	}
 
 	switch {

@@ -123,4 +123,9 @@ func TestGeneratedStylesheetUsesVars(t *testing.T) {
 			t.Errorf("tailwind.css généré sans %s", rule)
 		}
 	}
+	for _, rule := range []string{".w-10", ".shrink-0"} {
+		if !strings.Contains(css, rule) {
+			t.Errorf("tailwind.css généré sans la classe utilisée %s", rule)
+		}
+	}
 }

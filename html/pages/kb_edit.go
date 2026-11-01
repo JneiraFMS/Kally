@@ -12,15 +12,17 @@ import (
 // PageKBEdit affiche le formulaire de modification d'une KB, pré-rempli.
 func PageKBEdit(currentPath string, k kb.KB) gomponents.Node {
 	return layout("Modifier "+k.ID, currentPath, []gomponents.Node{
-		Div(Class("p-6 max-w-2xl mx-auto space-y-5"),
-			H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text("Modifier "+k.ID)),
+		Div(Class("max-w-5xl mx-auto px-6 py-6"),
+			Div(Class("max-w-2xl space-y-5"),
+				H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text("Modifier "+k.ID)),
 
-			// Le formulaire pointe vers POST /kb/edit
-			elements.FormCustomWithAction(kbEditFields(k), "/kb/edit", "Enregistrer"),
+				// Le formulaire pointe vers POST /kb/edit
+				elements.FormCustomWithAction(kbEditFields(k), "/kb/edit", "Enregistrer"),
 
-			// Zone où s'affichera la réponse du serveur (htmx) — même
-			// position et mêmes classes que sur le formulaire de création.
-			Div(ID("reponse-serveur"), Class("text-g-text font-semibold")),
+				// Zone où s'affichera la réponse du serveur (htmx) — même
+				// position et mêmes classes que sur le formulaire de création.
+				Div(ID("reponse-serveur"), Class("text-g-text font-semibold")),
+			),
 		),
 	})
 }

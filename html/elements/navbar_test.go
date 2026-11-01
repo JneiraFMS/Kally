@@ -32,4 +32,8 @@ func TestNavbarCustomRendersLogo(t *testing.T) {
 	if !strings.Contains(html, `aria-hidden="true"`) {
 		t.Errorf("logo SVG sans aria-hidden")
 	}
+	// Cellule de largeur fixe autour du logo (position stable sur toutes les pages)
+	if !strings.Contains(html, `w-10 shrink-0`) {
+		t.Errorf("logo sans conteneur de largeur fixe (w-10 shrink-0)")
+	}
 }
