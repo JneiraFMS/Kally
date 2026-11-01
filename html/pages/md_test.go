@@ -54,15 +54,28 @@ func TestChromaClassesCovered(t *testing.T) {
 }
 
 // TestMarkdownHighlightingNeverInlineColors : aucun style hex inline dans
-// le HTML (l'inverse des options Unsafe/inline-styles de Chroma).
+// le HTML du markdown (l'inverse des options Unsafe/inline-styles de
+// Chroma). Seule la zone .md est vérifiée — la navbar peut porter un style
+// inline sur son logo SVG (fill: var(--g-accent), lisible côté CSS).
 func TestMarkdownHighlightingNeverInlineColors(t *testing.T) {
 	md := "```bash\ncurl -s http://x | grep ripgrep # cmd\n```\n\n```json\n{\"cle\": 1}\n```\n"
 	html := markdownDetailHTML(t, "e", md, "")
 
+	// Extraire uniquement le contenu markdown (div.md) pour le test
+	start := strings.Index(html, `class="md"`)
+	if start < 0 {
+		t.Fatalf("zone .md introuvable dans le HTML")
+	}
+	end := strings.Index(html[start:], `</div>`)
+	if end < 0 {
+		t.Fatalf("fin de zone .md introuvable")
+	}
+	mdHTML := html[start : start+end]
+
 	// Chroma ne doit pas émettre de style inline (mode classes imposé)
-	if strings.Contains(html, `style="`) {
-		start := strings.Index(html, `style="`)
-		t.Errorf("style inline (Chroma sans mode classes) : %s…", html[start:start+60])
+	if strings.Contains(mdHTML, `style="`) {
+		start := strings.Index(mdHTML, `style="`)
+		t.Errorf("style inline (Chroma sans mode classes) : %s…", mdHTML[start:start+60])
 	}
 }
 
