@@ -25,7 +25,7 @@ func TestPageKBGraphStyle(t *testing.T) {
 		t.Errorf("le tooltip de l'arête doit mentionner le tag partagé")
 	}
 	// Halo sombre derrière les libellés (lisibilité au croisement des lignes)
-	if !strings.Contains(html, `paint-order="stroke"`) {
+	if !strings.Contains(html, "paint-order: stroke") {
 		t.Errorf("les libellés doivent utiliser paint-order pour le halo")
 	}
 	// Nœuds stylables / survolables
@@ -33,8 +33,15 @@ func TestPageKBGraphStyle(t *testing.T) {
 		t.Errorf("classe kg-node absente : pas de survol possible")
 	}
 	// Arêtes discrètes
-	if !strings.Contains(html, `stroke-width="1"`) {
-		t.Errorf("les arêtes doivent faire stroke-width=1")
+	if !strings.Contains(html, "stroke-width: 1") {
+		t.Errorf("les arêtes doivent faire stroke-width=1 (classe kg-edge)")
+	}
+	// Arêtes/nœuds/libellés couleur par classe CSS (thèmes via var())
+	if !strings.Contains(html, ".kg-edge") || !strings.Contains(html, ".kg-dot") || !strings.Contains(html, ".kg-label") {
+		t.Errorf("classes de couleur du graphe manquantes (kg-edge/kg-dot/kg-label)")
+	}
+	if strings.Contains(html, `stroke="#`) || strings.Contains(html, `fill="#`) {
+		t.Errorf("couleurs SVG en attribut hex : impossible à thématiser")
 	}
 	// Légende sous le graphe
 	if !strings.Contains(html, "Un point par KB") {

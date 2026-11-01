@@ -1,7 +1,8 @@
 package pages
 
 import (
-	"fmt"
+	"sort"
+	"strings"
 
 	"grz/html/elements"
 
@@ -15,71 +16,150 @@ var navElements = []elements.NavbarElements{
 	{Label: "Graphe", Href: "/kb/graph"},
 }
 
+// themeCSSRules construit les blocs `:root` (dark, par défaut) et
+// `[data-theme="light"]` depuis les deux palettes : les tokens g-* sont des
+// variables CSS, la bascule claire/sombre ne change QUE ces var (la feuille
+// Tailwind générée les référence, aucune hex utile en dur). Ordre
+// déterministe (clés triées) pour un rendu et des tests stables.
+func themeCSSRules() string {
+	themes := []struct {
+		selector string
+		vars     ThemeVars
+		scheme   string
+	}{
+		{selector: ":root", vars: paletteDark, scheme: "dark"},
+		{selector: `[data-theme="light"]`, vars: paletteLight, scheme: "light"},
+	}
+	var sb strings.Builder
+	for _, th := range themes {
+		sb.WriteString(th.selector + "{" + "color-scheme: " + th.scheme + ";")
+		names := make([]string, 0, len(th.vars))
+		for name := range th.vars {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, name := range names {
+			sb.WriteString("--" + name + ":" + th.vars[name] + ";")
+		}
+		sb.WriteString("}")
+	}
+	return sb.String()
+}
+
+// themeInitScript : anti-FOUC — applique data-theme sur <html> AVANT le
+// chargement de la feuille CSS (préférence mémorisée, sinon le préférence
+// système). Marqueur grz-theme-init.
+const themeInitScript = `/* grz-theme-init */
+(function () {
+"use strict";
+var t = null;
+try { t = localStorage.getItem("grz-theme"); } catch (e) {}
+if (t !== "light" && t !== "dark") {
+	t = (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches) ? "light" : "dark";
+}
+document.documentElement.dataset.theme = t;
+})();`
+
+// themeToggleScript : bascule clair/sombre au clic sur #theme-toggle
+// (persisté en localStorage, appliqué sans rechargement grâce aux var CSS).
+const themeToggleScript = `/* grz-theme-toggle */
+(function () {
+"use strict";
+var button = document.getElementById("theme-toggle");
+if (!button) return;
+button.addEventListener("click", function () {
+	var next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+	document.documentElement.dataset.theme = next;
+	try { localStorage.setItem("grz-theme", next); } catch (e) {}
+});
+})();`
+
 // glanceBodyStyle : style global du corps (fond Solarized + typo + focus
-// clavier visible) et styles markdown des fiches (.md). Les couleurs
-// proviennent de la palette Solarized (palette.go), même source que les
-// tokens g-* de tailwind.config.js. La feuille des classes utilitaires,
-// générée hors-ligne par tools/build-css.sh, est servie à
-// /assets/tailwind.css (web/static/tailwind.css embarqué).
-var glanceBodyStyle = fmt.Sprintf(`body {
-	background-color: %s;
-	color: %s;
+// clavier visible) et styles markdown des fiches (.md) — consommés via les
+// var(--g-*). La feuille des classes utilitaires, générée hors-ligne par
+// tools/build-css.sh, est servie à /assets/tailwind.css.
+const glanceBodyStyle = `body {
+	background-color: var(--g-bg);
+	color: var(--g-text);
 	font: 14px/1.6 ui-sans-serif, system-ui, sans-serif;
 	-webkit-font-smoothing: antialiased;
 }
 ::selection { background: rgba(178, 137, 0, 0.30); }
 a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
-	outline: 2px solid %s;
+	outline: 2px solid var(--g-cyan);
 	outline-offset: 2px;
 }
+/* Bouton de bascule de thème, dans la navbar */
+#theme-toggle {
+	color: var(--g-base);
+	background: none; border: none; cursor: pointer;
+	font: inherit; padding: 0;
+}
+#theme-toggle:hover { color: var(--g-hi); }
+#theme-toggle:focus-visible { outline: 2px solid var(--g-cyan); outline-offset: 2px; }
+
 /* Sections markdown des fiches (classe md) : épaisseur réduite, fonds
-   blocs solarisés, code mono, liens accentués. */
+   blocs, code mono, liens accentués — thème via var(--g-*). */
 .md p { margin: 0.25rem 0; }
 .md ul, .md ol { margin: 0.25rem 0; padding-left: 1.25rem; }
 .md h1, .md h2, .md h3 {
-	font-size: 0.9rem; font-weight: 600; color: %s;
+	font-size: 0.9rem; font-weight: 600; color: var(--g-hi);
 	margin: 0.5rem 0 0.25rem;
 }
 .md code {
 	font: 12px ui-monospace, SFMono-Regular, monospace;
-	color: %s; background: %s;
+	color: var(--g-hi); background: var(--g-widget);
 	padding: 0.1rem 0.3rem; border-radius: 0.25rem;
 }
 .md pre {
-	background: %s; color: %s;
+	background: var(--g-widget); color: var(--g-text);
 	border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.5rem 0;
 	overflow-x: auto;
 	font: 12px/1.5 ui-monospace, SFMono-Regular, monospace;
 }
 .md pre code { background: none; padding: 0; color: inherit; }
-.md a { color: %s; text-decoration: underline; }
+.md a { color: var(--g-accent); text-decoration: underline; }
 .md blockquote {
-	border-left: 2px solid %s; padding-left: 0.75rem;
-	color: %s; margin: 0.25rem 0;
-}`,
-	solarizedBase03, solarizedBase1, solarizedCyan, // body + focus (outline cyan)
-	solarizedBase2,                  // titres .md
-	solarizedBase2, solarizedBase02, // .md code (couleur + fond)
-	solarizedBase02, solarizedBase1, // .md pre (fond + texte)
-	solarizedYellow,               // liens .md
-	solarizedSep, solarizedBase00, // blockquote (bord + texte)
-)
+	border-left: 2px solid var(--g-sep); padding-left: 0.75rem;
+	color: var(--g-muted); margin: 0.25rem 0;
+}
+
+/* Coloration syntaxique (Chroma, mode classes) : familles token couvertes,
+   le reste hérite de la couleur du texte. Palette Solarized via var.
+   NB: kd/kv/kt/kr = variantes de mots-clés ; fm = fonction/méthode ;
+   ss/sa = chaîne spéciale ; mb/mx = nombres ; nv = variable. */
+.chroma-k, .chroma-kd, .chroma-kn, .chroma-kp, .chroma-kr, .chroma-kv,
+.chroma-kt, .chroma-ow, .chroma-kc { color: var(--g-positive); font-weight: 600; }
+.chroma-s, .chroma-s1, .chroma-s2, .chroma-sd, .chroma-se, .chroma-si,
+.chroma-sx, .chroma-ss, .chroma-sa, .chroma-m, .chroma-mi, .chroma-mf,
+.chroma-mh, .chroma-mb, .chroma-mx, .chroma-mo, .chroma-il { color: var(--g-cyan); }
+.chroma-c, .chroma-c1, .chroma-ch, .chroma-cm, .chroma-cs, .chroma-cp,
+.chroma-cd { color: var(--g-muted); font-style: italic; }
+.chroma-nf, .chroma-fm, .chroma-na { color: var(--g-hi); font-weight: 600; }
+.chroma-nc, .chroma-nb, .chroma-no, .chroma-nn { color: var(--g-text); font-weight: 600; }
+.chroma-nv, .chroma-o { color: var(--g-base); }
+.chroma-err, .chroma-w { color: var(--g-negative); }`
 
 // layout assemble la structure HTML commune (head, scripts, navbar)
-// avec la palette Solarized délavée.
+// avec le thème Solarized commutable (dark par défaut).
 func layout(title string, currentPath string, content []gomponents.Node) gomponents.Node {
 	return components.HTML5(components.HTML5Props{
 		Title:    title,
 		Language: "fr",
 		Head: []gomponents.Node{
+			// Anti-FOUC : data-theme posé AVANT le chargement de la feuille
+			gomponents.El("script", gomponents.Raw(themeInitScript)),
 			// Feuille locale générée hors-ligne (tools/build-css.sh) :
-			// classes utilitaires + preflight, palette Solarized en dur.
+			// classes utilitaires + preflight, tokens g-* = var(--g-*)
 			Link(Rel("stylesheet"), Href("/assets/tailwind.css")),
-			gomponents.El("style", gomponents.Raw(glanceBodyStyle)), // fond + typo du body
-			Script(Src("https://unpkg.com/htmx.org@1.9.10")),        // Pour soumettre sans recharger
+			// Règles de thème (:root dark + [data-theme=light]) + body + .md
+			gomponents.El("style", gomponents.Raw(themeCSSRules()+glanceBodyStyle)),
+			Script(Src("https://unpkg.com/htmx.org@1.9.10")), // Pour soumettre sans recharger
 		},
 		Body: []gomponents.Node{
 			elements.NavbarCustom(navElements, currentPath),
+			// Bascule clair/sombre (script câblé après la navbar)
+			gomponents.El("script", gomponents.Raw(themeToggleScript)),
 			gomponents.Group(content),
 		},
 	})

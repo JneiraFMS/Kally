@@ -40,9 +40,18 @@ func NavbarCustom(elementList []NavbarElements, currentPath string) gomponents.N
 				Class("py-3 font-mono text-g-hi text-sm font-semibold tracking-wide"),
 				gomponents.Text("KB"),
 			),
-			Ol(
-				Class("flex items-center gap-6 text-sm font-medium"),
-				gomponents.Group(navItems),
+			Div(Class("flex items-center gap-6"),
+				Ol(
+					Class("flex items-center gap-6 text-sm font-medium list-none"),
+					gomponents.Group(navItems),
+				),
+				// Bascule clair/sombre (comportement : themeToggleScript)
+				Button(
+					Type("button"),
+					ID("theme-toggle"),
+					gomponents.Attr("aria-label", "Changer de thème"),
+					gomponents.Text("◐"),
+				),
 			),
 		),
 	)

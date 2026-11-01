@@ -17,23 +17,40 @@ import (
 // graphCSS : styles SVG — survol de nœud discret (le libellé s'éclaircit,
 // le point grandit doucement), arêtes liées accentuées en jaune (kg-hot)
 // quand le pointeur survole un nœud, transitions coupées si l'utilisateur
-// préfère les animations réduites. Couleurs depuis la palette Solarized.
-var graphCSS = fmt.Sprintf(`.kg-node circle {
+// préfère les animations réduites. Couleurs via var(--g-*) : le même SVG
+// se colore selon le thème actif (dark par défaut / [data-theme=light]).
+// Les attributs de présentation SVG ne supportant pas var(), toutes les
+// couleurs passent par ces classes CSS.
+const graphCSS = `.kg-edge {
+	stroke: var(--g-sep);
+	stroke-opacity: 0.6;
+	stroke-width: 1;
+	stroke-linecap: round;
+}
+.kg-dot { fill: var(--g-cyan); }
+.kg-label {
+	fill: var(--g-base);
+	paint-order: stroke;
+	stroke: var(--g-bg);
+	stroke-width: 6;
+	stroke-linejoin: round;
+}
+.kg-node circle {
 	transform-box: fill-box;
 	transform-origin: center;
 	transition: transform 150ms ease;
 }
 .kg-node { cursor: pointer; }
 .kg-node:hover circle { transform: scale(1.5); }
-.kg-node:hover text { fill: %s; }
+.kg-node:hover .kg-label { fill: var(--g-hi); }
 .kg-hot {
-	stroke: %s !important;
+	stroke: var(--g-accent) !important;
 	stroke-opacity: 1 !important;
 	stroke-width: 2.5 !important;
 }
 @media (prefers-reduced-motion: reduce) {
 	.kg-node circle { transition: none; }
-}`, solarizedBase2, solarizedYellow)
+}`
 
 // graphScript : surlignage des arêtes du nœud survolé. Chaque nœud porte
 // data-id, chaque arête data-a/data-b : au survol (délégation par
@@ -135,10 +152,7 @@ func edges(kbs []kb.KB, posOf map[string]kb.GraphNode) []gomponents.Node {
 			gomponents.El("line",
 				gomponents.Attr("x1", f(a.X)), gomponents.Attr("y1", f(a.Y)),
 				gomponents.Attr("x2", f(b.X)), gomponents.Attr("y2", f(b.Y)),
-				gomponents.Attr("stroke", solarizedSep), // filet solarisé (g-sep)
-				gomponents.Attr("stroke-width", "1"),
-				gomponents.Attr("stroke-opacity", "0.6"),
-				gomponents.Attr("stroke-linecap", "round"),
+				gomponents.Attr("class", "kg-edge"),
 				// Extrémités pour le surlignage kg-hot au survol du nœud
 				gomponents.Attr("data-a", e.A),
 				gomponents.Attr("data-b", e.B),
@@ -177,19 +191,14 @@ func nodes(positions []kb.GraphNode, byID map[string]kb.KB) []gomponents.Node {
 				gomponents.El("circle",
 					gomponents.Attr("cx", f(n.X)), gomponents.Attr("cy", f(n.Y)),
 					gomponents.Attr("r", "8"),
-					gomponents.Attr("fill", solarizedCyan), // accent cyan solarisé
+					gomponents.Attr("class", "kg-dot"),
 				),
 				gomponents.El("text",
 					gomponents.Attr("x", f(n.X)), gomponents.Attr("y", f(labelY)),
 					gomponents.Attr("text-anchor", "middle"),
 					gomponents.Attr("font-size", "18"),
 					gomponents.Attr("font-family", "ui-monospace, monospace"),
-					gomponents.Attr("fill", solarizedBase0), // base0, calme
-					// Halo sombre derrière le texte (lisibilité sur les lignes)
-					gomponents.Attr("paint-order", "stroke"),
-					gomponents.Attr("stroke", solarizedBase03),
-					gomponents.Attr("stroke-width", "6"),
-					gomponents.Attr("stroke-linejoin", "round"),
+					gomponents.Attr("class", "kg-label"),
 					gomponents.Text(n.ID),
 				),
 			),

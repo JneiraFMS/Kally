@@ -795,5 +795,27 @@ There is no Tailwind CDN or Node toolchain.
   `$HOME/.cache/grz` and writes the minified output to
   `web/static/tailwind.css`, which is committed with the binary-side embed.
 - Page-level styles (body, `.md` markdown sections, SVG graph) remain
-  **inline** in `layout.go` / `kb_graph.go`, built from `palette.go`
-  constants with `fmt.Sprintf` — do not hand-edit hex colors in CSS strings.
+  **inline** in `layout.go` / `kb_graph.go`, consuming `var(--g-*)` —
+  do not hard-code hex colors in CSS strings; change the values in
+  `palette.go` instead.
+
+### Theming & Palette (Phases 3–4)
+
+- Colors are **CSS variables** (`--g-*`), generated in the inline `<style>`
+  by `layout.go` (`themeCSSRules`): `:root` = Solarized dark (default),
+  `[data-theme="light"]` = Solarized Light ladder (inverted canon).
+  `palette.go` holds both maps (`paletteDark`, `paletteLight`) — same token
+  set, tests fail on drift (`TestThemePalettes`, `TestLayoutThemeVarRules`).
+- Tailwind tokens in `tailwind.config.js` reference `var(--g-*)`; the theme
+  is switched at runtime via `<html data-theme="light|dark">` set by the
+  **anti-FOUC init script** (place it BEFORE the stylesheet link) and the
+  navbar toggle (`#theme-toggle`, persisted in localStorage `grz-theme`).
+  Default follows `prefers-color-scheme`.
+- SVG colors must go through **CSS classes** (`kg-edge`, `kg-dot`,
+  `kg-label` set in the SVG stylesheet, colors `var(--g-*)`) — presentation
+  attributes cannot use `var()`.
+- Markdown code highlighting: goldmark-highlighting + Chroma in **classes
+  mode** (`chromahtml.WithClasses(true)`, prefix `chroma-`) — never inline
+  colors. Token-family colors live in the inline stylesheet (`.chroma-*`)
+  using `var(--g-*)`; extended families (kd/kt/fm/mb/…): update the rules
+  in `layout.go` when a new lexer family shows up unstyled.

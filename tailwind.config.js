@@ -15,22 +15,27 @@ module.exports = {
 	theme: {
 		extend: {
 			colors: {
-				'g-bg': '#002b36',        // base03 (fond de page)
-				'g-widget': '#073642',    // base02 (cards, navbar, blocs)
-				'g-block': '#15414d',     // inputs, blocs intermédiaires
-				'g-hover': '#214c56',
-				'g-border': '#1b444f',
-				'g-sep': '#28515a',       // filets, arêtes du graphe
-				'g-accent': '#b58900',    // jaune Solarized délavé
-				'g-accent-dim': '#0c464f',
-				'g-hi': '#eee8d5',        // base2 (titres)
-				'g-text': '#93a1a1',      // base1 (corps)
-				'g-base': '#839496',      // base0 (secondaire)
-				'g-muted': '#657b83',     // base00 (atténué)
-				'g-subdue': '#586e75',    // base01 (très atténué, décoratif)
-				'g-negative': '#dc322f',  // red
-				'g-positive': '#859900',  // green
-				'g-ink': '#002b36',       // texte inversé sur l'accent (= fond)
+				/* Thème commutable : les tokens pointent les variables CSS
+				 * générées par layout.go (:root dark + [data-theme=light]).
+				 * Valeurs des palettes : html/pages/palette.go (tests
+				 * TestThemePalettes + TestThemePalettesExhaustives). */
+				'g-bg': 'var(--g-bg)',
+				'g-widget': 'var(--g-widget)',
+				'g-block': 'var(--g-block)',
+				'g-hover': 'var(--g-hover)',
+				'g-border': 'var(--g-border)',
+				'g-sep': 'var(--g-sep)',
+				'g-accent': 'var(--g-accent)',
+				'g-accent-dim': 'var(--g-accent-dim)',
+				'g-cyan': 'var(--g-cyan)',
+				'g-hi': 'var(--g-hi)',
+				'g-text': 'var(--g-text)',
+				'g-base': 'var(--g-base)',
+				'g-muted': 'var(--g-muted)',
+				'g-subdue': 'var(--g-subdue)',
+				'g-negative': 'var(--g-negative)',
+				'g-positive': 'var(--g-positive)',
+				'g-ink': 'var(--g-ink)',
 			},
 		},
 	},

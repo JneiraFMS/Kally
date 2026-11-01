@@ -13,78 +13,93 @@ const (
 	cssRelPath    = "../../web/static/tailwind.css"
 )
 
-// TestPaletteSolarizedValues : les constantes de la palette correspondent
-// aux valeurs Solarized attendues (dérive impossible sans test rouge).
-func TestPaletteSolarizedValues(t *testing.T) {
-	tests := []struct {
-		name string
-		got  string
-		want string
-	}{
-		{"base03", solarizedBase03, "#002b36"},
-		{"base02", solarizedBase02, "#073642"},
-		{"base01", solarizedBase01, "#586e75"},
-		{"base00", solarizedBase00, "#657b83"},
-		{"base0", solarizedBase0, "#839496"},
-		{"base1", solarizedBase1, "#93a1a1"},
-		{"base2", solarizedBase2, "#eee8d5"},
-		{"yellow", solarizedYellow, "#b58900"},
-		{"cyan", solarizedCyan, "#2aa198"},
-		{"red", solarizedRed, "#dc322f"},
-		{"green", solarizedGreen, "#859900"},
-		{"sep", solarizedSep, "#28515a"},
-		{"block", solarizedBlock, "#15414d"},
-		{"border", solarizedBorder, "#1b444f"},
-		{"hover", solarizedHover, "#214c56"},
-		{"accentDim", solarizedAccentDim, "#0c464f"},
+// themeTokenNames : les tokens de palette couverts par les deux thèmes
+// (map dark/light + :root + [data-theme="light"]).
+var themeTokenNames = []string{
+	"g-bg", "g-widget", "g-block", "g-hover", "g-border", "g-sep",
+	"g-accent", "g-accent-dim", "g-cyan", "g-hi", "g-text", "g-base",
+	"g-muted", "g-subdue", "g-negative", "g-positive", "g-ink",
+}
+
+// wantPaletteValues : valeurs Canonique attendues du thème dark (la base
+// actuelle, Solarized dark) — dérive interdite.
+var wantPaletteValues = map[string]string{
+	"g-bg":         "#002b36",
+	"g-widget":     "#073642",
+	"g-block":      "#15414d",
+	"g-hover":      "#214c56",
+	"g-border":     "#1b444f",
+	"g-sep":        "#28515a",
+	"g-accent":     "#b58900",
+	"g-accent-dim": "#0c464f",
+	"g-cyan":       "#2aa198",
+	"g-hi":         "#eee8d5",
+	"g-text":       "#93a1a1",
+	"g-base":       "#839496",
+	"g-muted":      "#657b83",
+	"g-subdue":     "#586e75",
+	"g-negative":   "#dc322f",
+	"g-positive":   "#859900",
+	"g-ink":        "#002b36",
+}
+
+// wantLightValues : mode clair Solarized Light — échelle inversée canonique
+// (fond base3, textes base01/base00) ; accents identiques au mode sombre ;
+// les 4 tons intermédiaires (block/hover/border/sep) sont des dérivés
+// blanchâtres, à valider par capture d'écran.
+var wantLightValues = map[string]string{
+	"g-bg":         "#fdf6e3",
+	"g-widget":     "#eee8d5",
+	"g-block":      "#e9e4d0",
+	"g-hover":      "#ded9c2",
+	"g-border":     "#d6d0b9",
+	"g-sep":        "#c8c29f",
+	"g-accent":     "#b58900",
+	"g-accent-dim": "#f5ecc9",
+	"g-cyan":       "#2aa198",
+	"g-hi":         "#073642",
+	"g-text":       "#586e75",
+	"g-base":       "#657b83",
+	"g-muted":      "#839496",
+	"g-subdue":     "#93a1a1",
+	"g-negative":   "#dc322f",
+	"g-positive":   "#859900",
+	"g-ink":        "#073642",
+}
+
+// TestThemePalettes : les deux palettes couvrent exactement les mêmes
+// tokens, avec les valeurs canoniques attendues.
+func TestThemePalettes(t *testing.T) {
+	for _, name := range themeTokenNames {
+		if paletteDark[name] != wantPaletteValues[name] {
+			t.Errorf("paletteDark[%s] = %q, want %q", name, paletteDark[name], wantPaletteValues[name])
+		}
+		if paletteLight[name] != wantLightValues[name] {
+			t.Errorf("paletteLight[%s] = %q, want %q", name, paletteLight[name], wantLightValues[name])
+		}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.got != tt.want {
-				t.Errorf("%s = %q, want %q", tt.name, tt.got, tt.want)
-			}
-		})
+	for _, p := range []ThemeVars{paletteDark, paletteLight} {
+		if len(p) != len(themeTokenNames) {
+			t.Errorf("palette sans couverture complète : %d tokens, want %d", len(p), len(themeTokenNames))
+		}
 	}
 }
 
-// TestTailwindConfigMatchesPalette : tailwind.config.js doit refléter les
-// constantes Go (palette.go) — sync des deux sources.
-func TestTailwindConfigMatchesPalette(t *testing.T) {
+// TestTailwindConfigUsesVars : tailwind.config.js doit référencer les
+// variables CSS (le thème se bascule au runtime), plus le scan du Go.
+func TestTailwindConfigUsesVars(t *testing.T) {
 	data, err := os.ReadFile(filepath.Clean(configRelPath))
 	if err != nil {
 		t.Fatalf("tailwind.config.js introuvable: %v", err)
 	}
 	config := string(data)
 
-	pairs := map[string]string{
-		solarizedBase02:    "g-widget",
-		solarizedBlock:     "g-block",
-		solarizedHover:     "g-hover",
-		solarizedBorder:    "g-border",
-		solarizedSep:       "g-sep",
-		solarizedYellow:    "g-accent",
-		solarizedAccentDim: "g-accent-dim",
-		solarizedBase2:     "g-hi",
-		solarizedBase1:     "g-text",
-		solarizedBase0:     "g-base",
-		solarizedBase00:    "g-muted",
-		solarizedBase01:    "g-subdue",
-		solarizedRed:       "g-negative",
-		solarizedGreen:     "g-positive",
-		// g-ink = texte inversé sur l'accent jaune (= fond)
-		solarizedBase03: "g-ink",
-	}
-	for hex, token := range pairs {
-		if !strings.Contains(config, "'"+token+"': '"+hex+"'") {
-			t.Errorf("tailwind.config.js : %s (%s) manquant", token, hex)
+	for _, name := range themeTokenNames {
+		want := "'" + name + "': 'var(--" + name + ")'"
+		if !strings.Contains(config, want) {
+			t.Errorf("tailwind.config.js sans %s", want)
 		}
 	}
-	// g-bg partage la même valeur que g-ink (base03)
-	if !strings.Contains(config, "'g-bg': '"+solarizedBase03+"'") {
-		t.Errorf("tailwind.config.js : g-bg manquant")
-	}
-
-	// Le scan doit couvrir les sources contenant les classes utilitaires.
 	for _, pattern := range []string{"./main.go", "./html/**/*.go", "./web/**/*.go"} {
 		if !strings.Contains(config, "'"+pattern+"'") {
 			t.Errorf("tailwind.config.js : content sans %s", pattern)
@@ -92,24 +107,20 @@ func TestTailwindConfigMatchesPalette(t *testing.T) {
 	}
 }
 
-// TestGeneratedStylesheetComplete : la feuille générée doit exister et
-// contenir les utilitaires clés (palette, classes arbitraires remplacées).
-func TestGeneratedStylesheetComplete(t *testing.T) {
+// TestGeneratedStylesheetUsesVars : la feuille générée ne doit pas coder en
+// dur l'hexapole couleur (sinon la bascule claire est ignorée).
+func TestGeneratedStylesheetUsesVars(t *testing.T) {
 	data, err := os.ReadFile(filepath.Clean(cssRelPath))
 	if err != nil {
 		t.Fatalf("web/static/tailwind.css introuvable (lancer tools/build-css.sh): %v", err)
 	}
 	css := string(data)
-	for _, cls := range []string{
-		".text-g-hi", ".bg-g-widget", ".text-g-ink", ".bg-g-accent",
-		".placeholder-g-muted", ".font-mono", ".hidden",
-	} {
-		if !strings.Contains(css, cls) {
-			t.Errorf("tailwind.css généré sans la règle %s", cls)
-		}
+	if strings.Contains(css, "002b36") {
+		t.Errorf("feuille générée avec hex Solarized en dur : le mode clair ne peut pas s'appliquer")
 	}
-	// Preflight présent (bases Tailwind)
-	if !strings.Contains(css, "-webkit-font-smoothing") {
-		t.Errorf("preflight Tailwind manquant dans la feuille générée")
+	for _, rule := range []string{"--g-widget", "var(--g-hi)", ".font-mono", ".hidden"} {
+		if !strings.Contains(css, rule) {
+			t.Errorf("tailwind.css généré sans %s", rule)
+		}
 	}
 }

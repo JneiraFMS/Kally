@@ -96,8 +96,13 @@ func TestLayoutBodyStyleSheet(t *testing.T) {
 		t.Fatalf("élément <style> non fermé")
 	}
 	css := html[start : start+end]
-	if !strings.Contains(css, "background-color: #002b36") {
-		t.Errorf("le fond Solarized (#002b36) n'est pas dans la feuille <style>")
+	// Fond Solarized : la feuille inline porte les variables de thème
+	// (:root dark = valeur de référence) et le body les consomme.
+	if !strings.Contains(css, "--g-bg:#002b36") {
+		t.Errorf("le fond Solarized (#002b36) n'est pas déclaré dans les var du thème")
+	}
+	if !strings.Contains(css, "background-color: var(--g-bg)") {
+		t.Errorf("le body ne consomme pas var(--g-bg)")
 	}
 	// Focus visible partout (accessibilité)
 	if !strings.Contains(css, ":focus-visible") {
