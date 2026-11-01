@@ -167,3 +167,68 @@ func TestExcerptGuard(t *testing.T) {
 		t.Errorf("excerpt() court = %q", got)
 	}
 }
+
+// TestSearchText : la clé de recherche fuzzy d'une KB contient l'ID, la
+// première ligne de l'erreur et les tags, le tout en minuscules (les lignes
+// suivantes de l'erreur sont exclues : on cherche sur ce qui est visible).
+func TestSearchText(t *testing.T) {
+	k, err := kb.NewKB("KB06644754", "Erreur de\nquantite négative", "notes", "résolution", "CC_Flow")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+
+	got := searchText(k)
+	for _, want := range []string{"kb06644754", "erreur de", "cc_flow"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("searchText() = %q : %q manquant", got, want)
+		}
+	}
+	if strings.Contains(got, "CC_Flow") || strings.Contains(got, "KB066") {
+		t.Errorf("searchText() = %q : doit être entièrement en minuscules", got)
+	}
+	if strings.Contains(got, "négative") {
+		t.Errorf("searchText() = %q : seule la première ligne de l'erreur doit matcher", got)
+	}
+}
+
+// TestPageAccueilSearchBar : la barre de recherche fuzzy est rendue avec son
+// script client, et chaque carte porte sa clé data-search (filtrage sans
+// aucun aller-retour réseau).
+func TestPageAccueilSearchBar(t *testing.T) {
+	kbs := []kb.KB{mustCardKB(t, "KB06644754", "cc_flow")}
+	html := renderedPage(t, PageAccueil("/", kbs, ""))
+
+	if !strings.Contains(html, `id="kb-search"`) {
+		t.Errorf("le champ de recherche id=kb-search est absent")
+	}
+	if !strings.Contains(html, `autocomplete="off"`) {
+		t.Errorf("le champ de recherche doit désactiver l'autocomplete navigateur")
+	}
+	if !strings.Contains(html, `data-search="kb06644754 erreur démo cc_flow"`) {
+		t.Errorf("la carte n'embarque pas sa clé data-search :\n%s", html)
+	}
+	if !strings.Contains(html, "fnFuzzyScore") {
+		t.Errorf("le scoreur fuzzy client (fnFuzzyScore) n'est pas injecté")
+	}
+	if !strings.Contains(html, "id=\"kb-no-results\"") {
+		t.Errorf("l'état « aucun résultat » est absent")
+	}
+}
+
+// TestPageAccueilSearchBarVide : sans KB (états vides), ni barre ni script
+// ne sont rendus — recherche = progressive enhancement inutile là.
+func TestPageAccueilSearchBarVide(t *testing.T) {
+	for _, tt := range []struct{ name, filtre string }{
+		{"aucune KB", ""},
+		{"tag sans résultat", "quantite"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			var kbs []kb.KB
+			html := renderedPage(t, PageAccueil("/", kbs, tt.filtre))
+
+			if strings.Contains(html, "kb-search") || strings.Contains(html, "fnFuzzyScore") {
+				t.Errorf("recherche rendue alors qu'aucune carte n'existe")
+			}
+		})
+	}
+}

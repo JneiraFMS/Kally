@@ -18,6 +18,14 @@ func firstLine(text string) string {
 	return ""
 }
 
+// searchText construit la clé de recherche fuzzy d'une KB : ID, première
+// ligne de l'erreur et tags, tout en minuscules. Elle est embarquée dans
+// l'attribut data-search de chaque carte pour que le filtrage se fasse
+// 100 % côté client (aucun aller-retour réseau à la frappe).
+func searchText(k kb.KB) string {
+	return strings.ToLower(k.ID + " " + firstLine(k.Erreur) + " " + strings.Join(k.Tags, " "))
+}
+
 // PageAccueil affiche la page d'accueil : cartes des KB existantes,
 // filtrées par tag si filtreTag est renseigné (chip "Filtré par" affiché).
 func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.Node {
@@ -43,6 +51,27 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 				gomponents.Text("Filtré par"),
 				Span(Class("font-mono text-g-hi"), gomponents.Text(filtreTag)),
 				A(Href("/"), Class("text-g-muted hover:text-g-hi"), gomponents.Text("×")),
+			),
+		)
+	}
+
+	// Barre de recherche fuzzy : rendue seulement s'il y a des cartes
+	// (les états vides n'ont rien à filtrer). Le filtrage est client.
+	hasKBs := len(kbs) > 0
+	if hasKBs {
+		header = append(header,
+			Div(Class("relative"),
+				Input(
+					ID("kb-search"),
+					Type("search"),
+					AutoComplete("off"),
+					Placeholder("Recherche fuzzy… (touche / pour filtre instantané)"),
+					Class("w-full px-4 py-2.5 rounded-lg bg-g-block border border-g-border text-g-hi placeholder-g-subdue focus:border-g-accent outline-none transition"),
+				),
+				Span(ID("kb-search-count"),
+					Class("absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-g-subdue pointer-events-none"),
+					gomponents.Text(""),
+				),
 			),
 		)
 	}
@@ -79,6 +108,17 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 		)
 	}
 
+	// État « aucun résultat » togglé par le script, et script du scoreur
+	// fuzzy injecté seulement quand il y a des cartes à filtrer.
+	if hasKBs {
+		content = append(content,
+			Div(ID("kb-no-results"), Class("hidden max-w-5xl mx-auto px-6 pb-8"),
+				Div(Class("bg-g-widget rounded-xl p-10 text-center text-g-base"), gomponents.Text("")),
+			),
+			searchScriptNode(),
+		)
+	}
+
 	return layout("GRZ - Bases de connaissance", currentPath, content)
 }
 
@@ -92,6 +132,8 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 func kbCard(k kb.KB) gomponents.Node {
 	return Div(
 		Class("relative bg-g-widget rounded-xl p-5 space-y-3 hover:bg-g-hover transition-colors"),
+		// Clé de recherche fuzzy (évaluée côté client, voir home_search.go)
+		Data("search", searchText(k)), // html.Data → data-search="..."
 		// Lien invisible couvrant toute la carte
 		A(
 			Href("/kb/detail?id="+k.ID),
