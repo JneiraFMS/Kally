@@ -8,7 +8,8 @@ import (
 
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark-highlighting/v2"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/util"
 )
 
 // goldmarkOptions : rendu markdown de GRZ.
@@ -19,11 +20,96 @@ import (
 //     sans détection auto (langage inconnu → bloc inerte, sûr).
 var goldmarkOptions = []goldmark.Option{
 	goldmark.WithExtensions(highlighting.NewHighlighting(
+		highlighting.WithWrapperRenderer(codeBlockWrapper),
 		highlighting.WithFormatOptions(
 			chromahtml.WithClasses(true),
 			chromahtml.ClassPrefix("chroma-"),
 		),
 	)),
+}
+
+// codeBlockWrapper entoure les blocs fenced générés par goldmark d'un bouton
+// Copier. Le code inline n'emprunte pas ce renderer et reste inchangé.
+// WrapperRenderer ne permet pas de remonter les erreurs d'écriture ; les
+// écritures suivent le contrat de cette API goldmark-highlighting.
+func codeBlockWrapper(w util.BufWriter, context highlighting.CodeBlockContext, entering bool) {
+	if entering {
+		_, _ = w.WriteString(`<div class="md-code-block"><button type="button" class="md-code-copy" aria-label="Copier le code" aria-live="polite" title="Copier le code"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path></svg></button>`)
+		if !context.Highlighted() {
+			// Avec un langage inconnu, l'extension délègue le contenu brut au
+			// writer Goldmark mais n'émet pas elle-même le wrapper <pre><code>.
+			_, _ = w.WriteString(`<pre><code>`)
+		}
+		return
+	}
+	if !context.Highlighted() {
+		_, _ = w.WriteString(`</code></pre>`)
+	}
+	_, _ = w.WriteString(`</div>`)
+}
+
+// codeCopyScript ajoute le comportement copier à chaque bloc fenced. Le texte
+// est lu avec textContent (donc sans balises de coloration Chroma) ; la
+// Clipboard API est préférée, avec execCommand comme fallback navigateur.
+const codeCopyScript = `/* md-code-copy-script */
+(function () {
+"use strict";
+
+function fallbackCopy(text) {
+	return new Promise(function (resolve, reject) {
+		var textarea = document.createElement("textarea");
+		textarea.value = text;
+		textarea.setAttribute("readonly", "");
+		textarea.style.position = "fixed";
+		textarea.style.opacity = "0";
+		document.body.appendChild(textarea);
+		textarea.select();
+		var copied = false;
+		try { copied = document.execCommand("copy"); } catch (e) {}
+		document.body.removeChild(textarea);
+		if (copied) resolve(); else reject(new Error("copy failed"));
+	});
+}
+
+function copyText(text) {
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		return navigator.clipboard.writeText(text).catch(function () { return fallbackCopy(text); });
+	}
+	return fallbackCopy(text);
+}
+
+var copyIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path></svg>';
+var copiedIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"></path></svg>';
+var copyErrorIcon = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="m15 9-6 6m0-6 6 6"></path></svg>';
+
+var buttons = document.querySelectorAll(".md-code-copy");
+for (var i = 0; i < buttons.length; i++) {
+	(function (button) {
+		button.addEventListener("click", function () {
+			var code = button.parentElement.querySelector("pre > code");
+			if (!code) return;
+			button.disabled = true;
+			copyText(code.textContent || "").then(function () {
+				button.innerHTML = copiedIcon;
+				button.setAttribute("aria-label", "Code copié dans le presse-papiers");
+			}).catch(function () {
+				button.innerHTML = copyErrorIcon;
+				button.setAttribute("aria-label", "Impossible de copier le code");
+			}).then(function () {
+				button.disabled = false;
+				window.setTimeout(function () {
+					button.innerHTML = copyIcon;
+					button.setAttribute("aria-label", "Copier le code");
+				}, 1800);
+			});
+		});
+	})(buttons[i]);
+}
+})();`
+
+// codeCopyScriptNode retourne le script à placer après le contenu markdown.
+func codeCopyScriptNode() gomponents.Node {
+	return gomponents.El("script", gomponents.Raw(codeCopyScript))
 }
 
 // mdToNode rend du markdown en HTML sûr via goldmark : le HTML brut du

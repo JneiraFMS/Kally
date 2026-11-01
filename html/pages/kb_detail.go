@@ -31,6 +31,7 @@ func PageKBDetail(currentPath string, k kb.KB, related []kb.KB) gomponents.Node 
 		),
 
 		Note(k.ID, k.Tags, sections...),
+		codeCopyScriptNode(),
 	})
 }
 

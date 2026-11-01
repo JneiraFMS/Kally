@@ -119,6 +119,21 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 	font: 12px/1.5 ui-monospace, SFMono-Regular, monospace;
 }
 .md pre code { background: none; padding: 0; color: inherit; }
+.md-code-block { position: relative; }
+.md-code-block pre { padding-top: 2.5rem; }
+.md-code-copy {
+	position: absolute; z-index: 1; top: 0.45rem; right: 0.5rem;
+	border: 1px solid var(--g-border); border-radius: 0.375rem;
+	min-width: 2rem; min-height: 2rem;
+	display: flex; align-items: center; justify-content: center;
+	padding: 0.3rem;
+	background: var(--g-block); color: var(--g-base);
+	font: 11px ui-sans-serif, system-ui, sans-serif;
+	cursor: pointer;
+}
+.md-code-copy:hover { color: var(--g-hi); }
+.md-code-copy:focus-visible { outline: 2px solid var(--g-cyan); outline-offset: 2px; }
+.md-code-copy:disabled { cursor: wait; opacity: 0.7; }
 .md a { color: var(--g-accent); text-decoration: underline; }
 .md blockquote {
 	border-left: 2px solid var(--g-sep); padding-left: 0.75rem;
