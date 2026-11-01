@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"grz/html/elements"
-	"grz/internal/kb"
+	kb "grz/internal/domain/kb"
 )
 
 // TestPageKBCreateFieldsConfiguration : le champ « erreur » du formulaire de

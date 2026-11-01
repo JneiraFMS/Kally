@@ -2,6 +2,7 @@ package web
 
 import (
 	_ "embed"
+	"log"
 	"net/http"
 )
 
@@ -16,5 +17,7 @@ var assetTailwindCSS []byte
 func ServeStylesheet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/css; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store") // la feuille est régénérée entre builds
-	_, _ = w.Write(assetTailwindCSS)
+	if _, err := w.Write(assetTailwindCSS); err != nil {
+		log.Printf("serve Tailwind stylesheet: %v", err)
+	}
 }

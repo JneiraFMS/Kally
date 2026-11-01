@@ -2,6 +2,7 @@ package pages
 
 import (
 	"bytes"
+	"log"
 
 	"maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
@@ -34,18 +35,24 @@ var goldmarkOptions = []goldmark.Option{
 // écritures suivent le contrat de cette API goldmark-highlighting.
 func codeBlockWrapper(w util.BufWriter, context highlighting.CodeBlockContext, entering bool) {
 	if entering {
-		_, _ = w.WriteString(`<div class="md-code-block"><button type="button" class="md-code-copy" aria-label="Copier le code" aria-live="polite" title="Copier le code"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path></svg></button>`)
+		writeWrapper(w, `<div class="md-code-block"><button type="button" class="md-code-copy" aria-label="Copier le code" aria-live="polite" title="Copier le code"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"></rect><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"></path></svg></button>`)
 		if !context.Highlighted() {
 			// Avec un langage inconnu, l'extension délègue le contenu brut au
 			// writer Goldmark mais n'émet pas elle-même le wrapper <pre><code>.
-			_, _ = w.WriteString(`<pre><code>`)
+			writeWrapper(w, `<pre><code>`)
 		}
 		return
 	}
 	if !context.Highlighted() {
-		_, _ = w.WriteString(`</code></pre>`)
+		writeWrapper(w, `</code></pre>`)
 	}
-	_, _ = w.WriteString(`</div>`)
+	writeWrapper(w, `</div>`)
+}
+
+func writeWrapper(w util.BufWriter, text string) {
+	if _, err := w.WriteString(text); err != nil {
+		log.Printf("render Markdown code block wrapper: %v", err)
+	}
 }
 
 // codeCopyScript ajoute le comportement copier à chaque bloc fenced. Le texte

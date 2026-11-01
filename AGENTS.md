@@ -94,6 +94,25 @@ tests/
 
 The exact directory structure may be adapted to the project, but the architectural boundaries MUST remain explicit.
 
+### Current GRZ package mapping
+
+The current implementation keeps those boundaries in these packages:
+
+```text
+internal/domain/kb                          # KB entity and domain rules
+internal/application/usecases                # KB use-case orchestration
+internal/application/dto                     # application input/output models
+internal/application/ports/{inbound,outbound} # application contracts
+internal/adapters/outbound/persistence       # Markdown file repository
+web                                          # inbound HTTP adapter
+html/pages                                   # HTML presentation adapter
+main.go                                      # dependency composition root
+```
+
+Persistence formats and filesystem access belong in adapters; domain packages
+must not serialize entities or calculate presentation-specific layout. HTTP
+handlers depend on the inbound application port, never directly on a repository.
+
 ---
 
 ## 4. Dependency Rule

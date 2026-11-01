@@ -10,19 +10,20 @@ import (
 	"strings"
 	"testing"
 
-	"grz/internal/kb"
+	"grz/internal/application/usecases"
+	domainkb "grz/internal/domain/kb"
 )
 
-// fakeRepo est un double simple du port kb.Repository pour les tests.
+// fakeRepo est un double simple du application repository port pour les tests.
 type fakeRepo struct {
-	saved map[string]kb.KB
+	saved map[string]domainkb.KB
 }
 
 func newFakeRepo() *fakeRepo {
-	return &fakeRepo{saved: map[string]kb.KB{}}
+	return &fakeRepo{saved: map[string]domainkb.KB{}}
 }
 
-func (f *fakeRepo) Save(_ context.Context, k kb.KB) error {
+func (f *fakeRepo) Save(_ context.Context, k domainkb.KB) error {
 	f.saved[k.ID] = k
 	return nil
 }
@@ -32,32 +33,36 @@ func (f *fakeRepo) Exists(_ context.Context, id string) (bool, error) {
 	return ok, nil
 }
 
-func (f *fakeRepo) FindAll(_ context.Context) ([]kb.KB, error) {
-	kbs := []kb.KB{}
+func (f *fakeRepo) FindAll(_ context.Context) ([]domainkb.KB, error) {
+	kbs := []domainkb.KB{}
 	for _, kb := range f.saved {
 		kbs = append(kbs, kb)
 	}
 	return kbs, nil
 }
 
-func (f *fakeRepo) FindByID(_ context.Context, id string) (*kb.KB, error) {
+func (f *fakeRepo) FindByID(_ context.Context, id string) (*domainkb.KB, error) {
 	if b, ok := f.saved[id]; ok {
 		return &b, nil
 	}
-	return nil, fmt.Errorf("kb: %w: %s", kb.ErrNotFound, id)
+	return nil, fmt.Errorf("kb: %w: %s", domainkb.ErrNotFound, id)
 }
 
 func (f *fakeRepo) Delete(_ context.Context, id string) error {
 	if _, ok := f.saved[id]; !ok {
-		return fmt.Errorf("kb: %w: %s", kb.ErrNotFound, id)
+		return fmt.Errorf("kb: %w: %s", domainkb.ErrNotFound, id)
 	}
 	delete(f.saved, id)
 	return nil
 }
 
+func newTestHandler(repo *fakeRepo) *KBHandler {
+	return NewKBHandler(usecases.NewKBService(repo))
+}
+
 func TestKBHandlerCreateSavesKB(t *testing.T) {
 	repo := newFakeRepo()
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	form := url.Values{
 		"id":         {"KB-0001"},
@@ -89,7 +94,7 @@ func TestKBHandlerCreateSavesKB(t *testing.T) {
 // l'enregistrement se termine par une redirection 303 vers la fiche.
 func TestKBHandlerCreateRedirectsNativeFlow(t *testing.T) {
 	repo := newFakeRepo()
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	form := url.Values{"id": {"KB-0001"}, "erreur": {"e"}, "notes": {"n"}, "resolution": {"r"}}
 	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
@@ -111,7 +116,7 @@ func TestKBHandlerCreateRedirectsNativeFlow(t *testing.T) {
 func TestKBHandlerCreateRefusesDuplicateID(t *testing.T) {
 	repo := seedRepo(t, "KB-0001")
 	original := repo.saved["KB-0001"]
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	form := url.Values{"id": {"KB-0001"}, "erreur": {"NOUVEAU CONTENU"}, "notes": {"n"}, "resolution": {"r"}}
 	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
@@ -139,7 +144,7 @@ func TestKBHandlerCreateRefusesDuplicateID(t *testing.T) {
 // ne doivent jamais apparaître comme HTML brut dans les pages d'erreur.
 func TestKBHandlerErrorPagesEscapeInput(t *testing.T) {
 	repo := newFakeRepo()
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	payload := `<img src=x onerror=alert(1)>`
 
@@ -166,7 +171,7 @@ func TestKBHandlerErrorPagesEscapeInput(t *testing.T) {
 // TestKBHandlerCreatePreservesTagsValidation : un tag invalide reste rejeté.
 func TestKBHandlerCreatePreservesTagsValidation(t *testing.T) {
 	repo := newFakeRepo()
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	form := url.Values{"id": {"KB-0001"}, "erreur": {"e"}, "notes": {"n"}, "resolution": {"r"}, "tags": {"bad tag!"}}
 	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
@@ -187,7 +192,7 @@ func TestKBHandlerCreatePreservesTagsValidation(t *testing.T) {
 // sur l'accueil.
 func TestKBHandlerDeleteRemovesKB(t *testing.T) {
 	repo := seedRepo(t, "KB-0001", "KB-0002")
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	form := url.Values{"id": {"KB-0001"}}
 	req := httptest.NewRequest("POST", "/kb/delete", strings.NewReader(form.Encode()))
@@ -212,7 +217,7 @@ func TestKBHandlerDeleteRemovesKB(t *testing.T) {
 
 // TestKBHandlerDeleteMissingKB : supprimer une KB absente répond 404.
 func TestKBHandlerDeleteMissingKB(t *testing.T) {
-	h := NewKBHandler(newFakeRepo())
+	h := newTestHandler(newFakeRepo())
 
 	form := url.Values{"id": {"KB-INCONNU"}}
 	req := httptest.NewRequest("POST", "/kb/delete", strings.NewReader(form.Encode()))
@@ -228,7 +233,7 @@ func TestKBHandlerDeleteMissingKB(t *testing.T) {
 
 func TestKBHandlerCreateRejectsInvalidID(t *testing.T) {
 	repo := newFakeRepo()
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	form := url.Values{"id": {"../hack"}, "erreur": {"e"}, "notes": {"n"}, "resolution": {"r"}}
 	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
@@ -245,6 +250,19 @@ func TestKBHandlerCreateRejectsInvalidID(t *testing.T) {
 	}
 }
 
+func TestKBHandlerCreateRejectsMalformedForm(t *testing.T) {
+	h := newTestHandler(newFakeRepo())
+	req := httptest.NewRequest("POST", "/kb", strings.NewReader("%zz"))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Create() status = %d, want 400", w.Code)
+	}
+}
+
 func seedRepo(t *testing.T, ids ...string) *fakeRepo {
 	t.Helper()
 	repo := newFakeRepo()
@@ -258,7 +276,7 @@ func seedRepo(t *testing.T, ids ...string) *fakeRepo {
 
 func seedKB(t *testing.T, repo *fakeRepo, id string, tags ...string) error {
 	t.Helper()
-	k, err := kb.NewKB(id, "erreur démo "+id, "notes", "résolution", tags...)
+	k, err := domainkb.NewKB(id, "erreur démo "+id, "notes", "résolution", tags...)
 	if err != nil {
 		t.Fatalf("NewKB(%q): %v", id, err)
 	}
@@ -267,7 +285,7 @@ func seedKB(t *testing.T, repo *fakeRepo, id string, tags ...string) error {
 
 func TestKBHandlerHomeShowsKBCards(t *testing.T) {
 	repo := seedRepo(t, "KB-0001", "KB-0002")
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
@@ -287,7 +305,7 @@ func TestKBHandlerHomeShowsKBCards(t *testing.T) {
 }
 
 func TestKBHandlerHomeEmptyState(t *testing.T) {
-	h := NewKBHandler(newFakeRepo())
+	h := newTestHandler(newFakeRepo())
 
 	req := httptest.NewRequest("GET", "/", nil)
 	w := httptest.NewRecorder()
@@ -300,7 +318,7 @@ func TestKBHandlerHomeEmptyState(t *testing.T) {
 
 func TestKBHandlerCreateSavesTags(t *testing.T) {
 	repo := newFakeRepo()
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	form := url.Values{
 		"id":         {"KB-0001"},
@@ -335,7 +353,7 @@ func TestKBHandlerHomeFiltersByTag(t *testing.T) {
 	if err := seedKB(t, repo, "KB-0002", "csv"); err != nil {
 		t.Fatal(err)
 	}
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	req := httptest.NewRequest("GET", "/?tag=kpi", nil)
 	w := httptest.NewRecorder()
@@ -364,7 +382,7 @@ func TestKBHandlerHomeFiltersByTag(t *testing.T) {
 // TestKBHandlerListRedirectsToHome : /kb redirige vers l'accueil
 // (avec conservation du filtre ?tag= éventuel).
 func TestKBHandlerListRedirectsToHome(t *testing.T) {
-	h := NewKBHandler(newFakeRepo())
+	h := newTestHandler(newFakeRepo())
 
 	tests := []struct {
 		name     string
@@ -398,7 +416,7 @@ func TestKBHandlerShowGraph(t *testing.T) {
 	if err := seedKB(t, repo, "KB-0002", "kpi"); err != nil {
 		t.Fatal(err)
 	}
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	req := httptest.NewRequest("GET", "/kb/graph", nil)
 	w := httptest.NewRecorder()
@@ -426,7 +444,7 @@ func TestKBHandlerDetailShowsRelatedKBs(t *testing.T) {
 	if err := seedKB(t, repo, "KB-0003"); err != nil {
 		t.Fatal(err)
 	}
-	h := NewKBHandler(repo)
+	h := newTestHandler(repo)
 
 	req := httptest.NewRequest("GET", "/kb/detail?id=KB-0001", nil)
 	w := httptest.NewRecorder()

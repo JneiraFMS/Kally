@@ -1,7 +1,6 @@
 package kb
 
 import (
-	"math"
 	"slices"
 	"strings"
 )
@@ -95,20 +94,6 @@ func Related(kbs []KB, kb KB) []KB {
 	return related
 }
 
-// Graph constants pour la disposition en cercle (viewBox 1000x1000).
-const (
-	graphCenterX = 500.0
-	graphCenterY = 500.0
-	graphRadius  = 380.0
-)
-
-// GraphNode est un nœud du graphe, positionné sur un cercle.
-type GraphNode struct {
-	ID string
-	X  float64
-	Y  float64
-}
-
 // GraphEdge est une arête entre deux KB partageant au moins un tag
 // (relation bidirectionnelle : l'ordre A/B est normalisé par ID croissant).
 // Tags contient les tags communs aux deux KB, triés (affichés en tooltip).
@@ -116,23 +101,6 @@ type GraphEdge struct {
 	A    string
 	B    string
 	Tags []string
-}
-
-// GraphNodes place chaque KB sur un cercle, triées par ID.
-func GraphNodes(kbs []KB) []GraphNode {
-	sorted := slices.Clone(kbs)
-	slices.SortFunc(sorted, func(a, b KB) int { return strings.Compare(a.ID, b.ID) })
-
-	nodes := make([]GraphNode, 0, len(sorted))
-	for i, k := range sorted {
-		angle := 2 * math.Pi * float64(i) / float64(len(sorted))
-		nodes = append(nodes, GraphNode{
-			ID: k.ID,
-			X:  graphCenterX + graphRadius*math.Cos(angle),
-			Y:  graphCenterY + graphRadius*math.Sin(angle),
-		})
-	}
-	return nodes
 }
 
 // GraphEdges retourne les arêtes entre KB partageant au moins un tag,

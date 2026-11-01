@@ -1,7 +1,7 @@
 package pages
 
 import (
-	"grz/internal/kb"
+	kb "grz/internal/domain/kb"
 	"strings"
 
 	"maragu.dev/gomponents"

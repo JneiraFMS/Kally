@@ -3,46 +3,43 @@ package web
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"grz/html/pages"
-	"grz/internal/kb"
+	"grz/internal/application"
+	"grz/internal/application/dto"
+	"grz/internal/application/ports/inbound"
+	domainkb "grz/internal/domain/kb"
 
 	"maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
-// KBHandler est l'adapter inbound HTTP du port kb.Repository :
-// il traduit les requêtes en appels au repository, sans logique métier.
+// KBHandler is the inbound HTTP adapter for knowledge-base use cases.
 type KBHandler struct {
-	repo kb.Repository
+	app inbound.KBApplication
 }
 
-// NewKBHandler injecte le repository dans le handler.
-func NewKBHandler(repo kb.Repository) *KBHandler {
-	return &KBHandler{repo: repo}
+// NewKBHandler injects the application port into the HTTP adapter.
+func NewKBHandler(app inbound.KBApplication) *KBHandler {
+	return &KBHandler{app: app}
 }
 
-// Home affiche la page d'accueil avec les cartes des KB existantes,
-// filtrées par tag si ?tag=xxx est présent (page liste fusionnée ici).
+// Home displays the knowledge-base cards, optionally filtered by tag.
 func (h *KBHandler) Home(w http.ResponseWriter, r *http.Request) {
-	kbs, err := h.repo.FindAll(r.Context())
+	tag := r.URL.Query().Get("tag")
+	items, err := h.app.List(r.Context(), tag)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeInternalError(w, err)
 		return
 	}
-
-	tag := r.URL.Query().Get("tag")
-	if tag != "" {
-		kbs = kb.FilterByTag(kbs, tag)
-	}
-
-	_ = pages.PageAccueil(r.URL.Path, kbs, tag).Render(w)
+	renderNode(w, pages.PageAccueil(r.URL.Path, items, tag))
 }
 
-// List redirige vers l'accueil : la page liste a été fusionnée avec
-// l'accueil (cartes + filtre ?tag=). Conservée pour les anciens liens/bookmarks.
+// List redirects old list URLs to the home page.
 func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
 	target := "/"
 	if tag := r.URL.Query().Get("tag"); tag != "" {
@@ -51,143 +48,112 @@ func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
-// ShowGraph affiche la vue graphe globale des KB (SVG).
+// ShowGraph displays the global knowledge-base graph.
 func (h *KBHandler) ShowGraph(w http.ResponseWriter, r *http.Request) {
-	kbs, err := h.repo.FindAll(r.Context())
+	items, err := h.app.List(r.Context(), "")
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeInternalError(w, err)
 		return
 	}
-
-	_ = pages.PageKBGraph(r.URL.Path, kbs).Render(w)
+	renderNode(w, pages.PageKBGraph(r.URL.Path, items))
 }
 
-// ShowNewForm affiche le formulaire de création.
+// ShowNewForm displays the create form.
 func (h *KBHandler) ShowNewForm(w http.ResponseWriter, r *http.Request) {
-	_ = pages.PageKBCreate(r.URL.Path).Render(w)
+	renderNode(w, pages.PageKBCreate(r.URL.Path))
 }
 
-// Create enregistre une KB soumise par le formulaire de création.
-// Un ID déjà présent est refusé (pas d'écrasement silencieux).
+// Create validates and creates a knowledge base submitted by the form.
 func (h *KBHandler) Create(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
-
-	newKB, err := kb.NewKB(
-		r.FormValue("id"),
-		r.FormValue("erreur"),
-		r.FormValue("notes"),
-		r.FormValue("resolution"),
-		r.FormValue("tags"),
-	)
+	if !parseForm(w, r) {
+		return
+	}
+	item, err := h.app.Create(r.Context(), inputFromRequest(r))
 	if err != nil {
-		writeMessage(w, http.StatusBadRequest, validationMessage(err))
-		return
-	}
-
-	exists, err := h.repo.Exists(r.Context(), newKB.ID)
-	if err != nil {
-		writeMessage(w, http.StatusInternalServerError, errorMessage("Erreur d'accès au stockage : "+err.Error()))
-		return
-	}
-	if exists {
-		writeMessage(w, http.StatusConflict, duplicateMessage(newKB.ID))
-		return
-	}
-
-	if err := h.repo.Save(r.Context(), newKB); err != nil {
-		writeMessage(w, http.StatusInternalServerError, errorMessage("Erreur d'enregistrement : "+err.Error()))
-		return
-	}
-
-	redirectToDetail(w, r, newKB.ID)
-}
-
-// UpdateForm enregistre les modifications d'une KB (l'édition autorise
-// réécrire le fichier existant, contrairement à la création).
-func (h *KBHandler) UpdateForm(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
-
-	newKB, err := kb.NewKB(
-		r.FormValue("id"),
-		r.FormValue("erreur"),
-		r.FormValue("notes"),
-		r.FormValue("resolution"),
-		r.FormValue("tags"),
-	)
-	if err != nil {
-		writeMessage(w, http.StatusBadRequest, validationMessage(err))
-		return
-	}
-
-	if err := h.repo.Save(r.Context(), newKB); err != nil {
-		writeMessage(w, http.StatusInternalServerError, errorMessage("Erreur d'enregistrement : "+err.Error()))
-		return
-	}
-
-	redirectToDetail(w, r, newKB.ID)
-}
-
-// ShowEditForm affiche le formulaire de modification pré-rempli.
-func (h *KBHandler) ShowEditForm(w http.ResponseWriter, r *http.Request) {
-	kbFound, ok := h.fetch(w, r, r.URL.Query().Get("id"))
-	if !ok {
-		return
-	}
-
-	_ = pages.PageKBEdit(r.URL.Path, *kbFound).Render(w)
-}
-
-// Delete supprime la KB id soumise en POST (formulaire natif, fonctionne
-// sans JavaScript). En succès, ramène sur l'accueil.
-func (h *KBHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	_ = r.ParseForm()
-	id := r.FormValue("id")
-
-	if err := h.repo.Delete(r.Context(), id); err != nil {
 		switch {
-		case errors.Is(err, kb.ErrNotFound):
-			writeMessage(w, http.StatusNotFound, errorMessage(fmt.Sprintf("KB %q introuvable", id)))
-		case errors.Is(err, kb.ErrInvalidID):
-			writeMessage(w, http.StatusBadRequest, errorMessage("Identifiant de KB invalide"))
+		case errors.Is(err, application.ErrAlreadyExists):
+			writeMessage(w, http.StatusConflict, duplicateMessage(strings.TrimSpace(r.FormValue("id"))))
+		case errors.Is(err, domainkb.ErrInvalidID), errors.Is(err, domainkb.ErrInvalidTag):
+			writeMessage(w, http.StatusBadRequest, validationMessage(err))
 		default:
-			writeMessage(w, http.StatusInternalServerError, errorMessage("Erreur de suppression : "+err.Error()))
+			writeInternalError(w, err)
 		}
 		return
 	}
+	redirectToDetail(w, r, item.ID)
+}
 
+// UpdateForm validates and saves edits to an existing knowledge base.
+func (h *KBHandler) UpdateForm(w http.ResponseWriter, r *http.Request) {
+	if !parseForm(w, r) {
+		return
+	}
+	item, err := h.app.Update(r.Context(), inputFromRequest(r))
+	if err != nil {
+		if errors.Is(err, domainkb.ErrInvalidID) || errors.Is(err, domainkb.ErrInvalidTag) {
+			writeMessage(w, http.StatusBadRequest, validationMessage(err))
+		} else {
+			writeInternalError(w, err)
+		}
+		return
+	}
+	redirectToDetail(w, r, item.ID)
+}
+
+// ShowEditForm displays the pre-filled edit form.
+func (h *KBHandler) ShowEditForm(w http.ResponseWriter, r *http.Request) {
+	item, ok := h.fetch(w, r, r.URL.Query().Get("id"))
+	if !ok {
+		return
+	}
+	renderNode(w, pages.PageKBEdit(r.URL.Path, *item))
+}
+
+// Delete removes a knowledge base submitted by the form.
+func (h *KBHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	if !parseForm(w, r) {
+		return
+	}
+	id := r.FormValue("id")
+	if err := h.app.Delete(r.Context(), id); err != nil {
+		switch {
+		case errors.Is(err, domainkb.ErrNotFound):
+			writeMessage(w, http.StatusNotFound, errorMessage(fmt.Sprintf("KB %q introuvable", id)))
+		case errors.Is(err, domainkb.ErrInvalidID):
+			writeMessage(w, http.StatusBadRequest, errorMessage("Identifiant de KB invalide"))
+		default:
+			writeInternalError(w, err)
+		}
+		return
+	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-// errorMessage construit un message d'erreur neutre. gomponents échappe le
-// texte : aucune donnée utilisateur (query ?id=) ne peut devenir du HTML.
-func errorMessage(texte string) gomponents.Node {
-	return Span(Class("text-g-negative font-semibold"), gomponents.Text(texte))
+// errorMessage builds a neutral HTML message; gomponents escapes its text.
+func errorMessage(text string) gomponents.Node {
+	return Span(Class("text-g-negative font-semibold"), gomponents.Text(text))
 }
 
-// validationMessage construit le message d'échec de validation du domaine et
-// identifie le champ fautif pour l'entourer de rouge (script inline htmx).
+// validationMessage identifies the field that failed domain validation.
 func validationMessage(err error) gomponents.Node {
-	field := "tags" // défaut : tag invalide
-	texte := "Données invalides : " + err.Error()
-	if errors.Is(err, kb.ErrInvalidID) {
+	field := "tags"
+	text := "Données invalides : " + err.Error()
+	if errors.Is(err, domainkb.ErrInvalidID) {
 		field = "id"
-		texte = "Données invalides : identifiant invalide (vide ou caractères interdits)."
+		text = "Données invalides : identifiant invalide (vide ou caractères interdits)."
 	}
 	return gomponents.Group([]gomponents.Node{
-		errorMessage(texte),
+		errorMessage(text),
 		gomponents.El("script", gomponents.Raw(focusFieldScript(field))),
 	})
 }
 
-// focusFieldScript retourne un script mini : entoure de rouge le champ fautif
-// et déplace le focus dessus. htmx exécute les scripts des contenus échangés
-// (allowScriptTags par défaut) ; sans JS, dégradation douce (message seul).
 func focusFieldScript(fieldID string) string {
 	return `(function(){var f=document.getElementById("field-` + fieldID + `");` +
 		`if(f){f.style.outline="2px solid #dc322f";f.style.outlineOffset="2px";f.focus();}})();`
 }
 
-// duplicateMessage avertit qu'une KB existe déjà et propose la modification.
+// duplicateMessage warns that a knowledge base already exists and links to edit.
 func duplicateMessage(id string) gomponents.Node {
 	return Span(Class("text-g-negative font-semibold"),
 		gomponents.Text("La KB "+id+" existe déjà. "),
@@ -198,8 +164,6 @@ func duplicateMessage(id string) gomponents.Node {
 	)
 }
 
-// redirectToDetail navigue vers la fiche de la KB enregistrée : htmx reçoit
-// l'ordre via l'en-tête HX-Redirect, un formulaire natif suit la 303.
 func redirectToDetail(w http.ResponseWriter, r *http.Request, id string) {
 	target := "/kb/detail?id=" + url.QueryEscape(id)
 	if r.Header.Get("HX-Request") == "true" {
@@ -210,47 +174,64 @@ func redirectToDetail(w http.ResponseWriter, r *http.Request, id string) {
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
-// fetch récupère une KB par son id de query, et écrit la réponse d'erreur
-// sinon. Retourne false si la requête ne peut pas continuer.
-func (h *KBHandler) fetch(w http.ResponseWriter, r *http.Request, id string) (*kb.KB, bool) {
-	kbFound, err := h.repo.FindByID(r.Context(), id)
-
+func (h *KBHandler) fetch(w http.ResponseWriter, r *http.Request, id string) (*domainkb.KB, bool) {
+	item, err := h.app.Get(r.Context(), id)
 	switch {
 	case err == nil:
-		return kbFound, true
-	case errors.Is(err, kb.ErrNotFound):
+		return item, true
+	case errors.Is(err, domainkb.ErrNotFound):
 		writeMessage(w, http.StatusNotFound, errorMessage(fmt.Sprintf("KB %q introuvable", id)))
-		return nil, false
 	default:
-		writeMessage(w, http.StatusInternalServerError, errorMessage("Erreur : "+err.Error()))
-		return nil, false
+		writeInternalError(w, err)
 	}
+	return nil, false
 }
 
-// Detail affiche la fiche complète d'une KB avec ses KB liées par tags.
+// Detail displays a knowledge base and the related entries prepared by the application.
 func (h *KBHandler) Detail(w http.ResponseWriter, r *http.Request) {
-	// Le graphe est construit depuis l'ensemble des KB du repository.
-	all, err := h.repo.FindAll(r.Context())
+	detail, err := h.app.Detail(r.Context(), r.URL.Query().Get("id"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		if errors.Is(err, domainkb.ErrNotFound) {
+			writeMessage(w, http.StatusNotFound, errorMessage(fmt.Sprintf("KB %q introuvable", r.URL.Query().Get("id"))))
+		} else {
+			writeInternalError(w, err)
+		}
 		return
 	}
-
-	id := r.URL.Query().Get("id")
-	current := kb.ByID(all, id)
-	if current == nil {
-		writeMessage(w, http.StatusNotFound, errorMessage(fmt.Sprintf("KB %q introuvable", id)))
-		return
-	}
-
-	related := kb.Related(all, *current)
-	_ = pages.PageKBDetail(r.URL.Path, *current, related).Render(w)
+	renderNode(w, pages.PageKBDetail(r.URL.Path, detail.KB, detail.Related))
 }
 
-// writeMessage écrit une réponse HTML partielle (échange HTMX / page
-// d'erreur). Le node est rendu par gomponents : le texte est échappé.
 func writeMessage(w http.ResponseWriter, status int, node gomponents.Node) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
-	_ = node.Render(w)
+	renderNode(w, node)
+}
+
+func inputFromRequest(r *http.Request) dto.KBInput {
+	return dto.KBInput{
+		ID:         r.FormValue("id"),
+		Erreur:     r.FormValue("erreur"),
+		Notes:      r.FormValue("notes"),
+		Resolution: r.FormValue("resolution"),
+		Tags:       r.FormValue("tags"),
+	}
+}
+
+func parseForm(w http.ResponseWriter, r *http.Request) bool {
+	if err := r.ParseForm(); err != nil {
+		writeMessage(w, http.StatusBadRequest, errorMessage("Formulaire invalide"))
+		return false
+	}
+	return true
+}
+
+func renderNode(w http.ResponseWriter, node gomponents.Node) {
+	if err := node.Render(w); err != nil {
+		log.Printf("render HTML: %v", err)
+	}
+}
+
+func writeInternalError(w http.ResponseWriter, err error) {
+	log.Printf("application request failed: %v", err)
+	writeMessage(w, http.StatusInternalServerError, errorMessage("Une erreur interne est survenue"))
 }

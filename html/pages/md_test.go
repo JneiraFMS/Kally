@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"grz/internal/kb"
+	kb "grz/internal/domain/kb"
 )
 
 // markdownDetailHTML retourne le HTML du détail pour un contenu donné.

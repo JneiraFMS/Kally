@@ -2,7 +2,7 @@ package pages
 
 import (
 	"grz/html/elements"
-	"grz/internal/kb"
+	kb "grz/internal/domain/kb"
 	"strings"
 
 	"maragu.dev/gomponents"

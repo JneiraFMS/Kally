@@ -3,7 +3,6 @@ package kb
 import (
 	"errors"
 	"slices"
-	"strings"
 	"testing"
 )
 
@@ -116,28 +115,5 @@ func TestNewKBWithTags(t *testing.T) {
 	_, err = NewKB("KB-0002", "e", "n", "r", "tag;invalide")
 	if !errors.Is(err, ErrInvalidTag) {
 		t.Errorf("NewKB() tag invalide: error = %v, want ErrInvalidTag", err)
-	}
-}
-
-func TestKBToMarkdown(t *testing.T) {
-	kb, err := NewKB("KB-0001", "Division par zéro", "Regarder le diviseur", "Vérifier avant de diviser")
-	if err != nil {
-		t.Fatalf("NewKB() inattendu: %v", err)
-	}
-
-	md := kb.toMarkdown()
-
-	for _, section := range []string{
-		"# KB-0001",
-		"## Erreur",
-		"Division par zéro",
-		"## Notes",
-		"Regarder le diviseur",
-		"## Résolution",
-		"Vérifier avant de diviser",
-	} {
-		if !strings.Contains(md, section) {
-			t.Errorf("toMarkdown() ne contient pas %q\nMarkdown:\n%s", section, md)
-		}
 	}
 }

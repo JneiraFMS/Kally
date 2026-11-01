@@ -1,4 +1,4 @@
-package kb
+package persistence
 
 import (
 	"context"
@@ -8,11 +8,13 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	domainkb "grz/internal/domain/kb"
 )
 
-func mustKB(t *testing.T, id, erreur, notes, resolution string, tags ...string) KB {
+func mustKB(t *testing.T, id, erreur, notes, resolution string, tags ...string) domainkb.KB {
 	t.Helper()
-	kb, err := NewKB(id, erreur, notes, resolution, tags...)
+	kb, err := domainkb.NewKB(id, erreur, notes, resolution, tags...)
 	if err != nil {
 		t.Fatalf("NewKB(%q) inattendu: %v", id, err)
 	}
@@ -64,7 +66,7 @@ func TestMDRepositoryFindByIDNotFound(t *testing.T) {
 
 	_, err := repo.FindByID(context.Background(), "KB-INCONNU")
 
-	if !errors.Is(err, ErrNotFound) {
+	if !errors.Is(err, domainkb.ErrNotFound) {
 		t.Errorf("FindByID() error = %v, want ErrNotFound", err)
 	}
 }
@@ -74,7 +76,7 @@ func TestMDRepositoryFindByIDRejectsInvalidID(t *testing.T) {
 
 	_, err := repo.FindByID(context.Background(), "../secret")
 
-	if !errors.Is(err, ErrInvalidID) {
+	if !errors.Is(err, domainkb.ErrInvalidID) {
 		t.Errorf("FindByID() error = %v, want ErrInvalidID", err)
 	}
 }
@@ -234,7 +236,7 @@ func TestMDRepositoryExists(t *testing.T) {
 	}
 
 	exists, err = repo.Exists(ctx, "../secret")
-	if !errors.Is(err, ErrInvalidID) {
+	if !errors.Is(err, domainkb.ErrInvalidID) {
 		t.Errorf("Exists() error = %v, want ErrInvalidID", err)
 	}
 	if exists {
@@ -257,7 +259,7 @@ func TestMDRepositoryDeleteRemovesFile(t *testing.T) {
 		t.Fatalf("Delete() inattendu: %v", err)
 	}
 
-	if _, err := repo.FindByID(ctx, "KB-0001"); !errors.Is(err, ErrNotFound) {
+	if _, err := repo.FindByID(ctx, "KB-0001"); !errors.Is(err, domainkb.ErrNotFound) {
 		t.Errorf("FindByID() après Delete error = %v, want ErrNotFound", err)
 	}
 
@@ -276,7 +278,7 @@ func TestMDRepositoryDeleteRemovesFile(t *testing.T) {
 func TestMDRepositoryDeleteNotFound(t *testing.T) {
 	repo := NewMDRepository(t.TempDir())
 
-	if err := repo.Delete(context.Background(), "KB-INCONNU"); !errors.Is(err, ErrNotFound) {
+	if err := repo.Delete(context.Background(), "KB-INCONNU"); !errors.Is(err, domainkb.ErrNotFound) {
 		t.Errorf("Delete() error = %v, want ErrNotFound", err)
 	}
 }
@@ -286,7 +288,7 @@ func TestMDRepositoryDeleteNotFound(t *testing.T) {
 func TestMDRepositoryDeleteRejectsInvalidID(t *testing.T) {
 	repo := NewMDRepository(t.TempDir())
 
-	if err := repo.Delete(context.Background(), "../secret"); !errors.Is(err, ErrInvalidID) {
+	if err := repo.Delete(context.Background(), "../secret"); !errors.Is(err, domainkb.ErrInvalidID) {
 		t.Errorf("Delete() error = %v, want ErrInvalidID", err)
 	}
 }

@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"path/filepath"
 
-	"grz/internal/kb"
+	"grz/internal/adapters/outbound/persistence"
+	"grz/internal/application/usecases"
 	"grz/web"
 )
 
@@ -14,8 +15,9 @@ const kbDataDir = "data/kb"
 func main() {
 	// Root de composition : les dépendances concrètes sont créées ici
 	// puis injectées dans les adapters inbound.
-	repo := kb.NewMDRepository(kbDataDir)
-	kbHandler := web.NewKBHandler(repo)
+	repo := persistence.NewMDRepository(kbDataDir)
+	kbApp := usecases.NewKBService(repo)
+	kbHandler := web.NewKBHandler(kbApp)
 
 	mux := http.NewServeMux()
 

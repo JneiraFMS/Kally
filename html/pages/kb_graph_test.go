@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"grz/internal/kb"
+	kb "grz/internal/domain/kb"
 )
 
 // TestPageKBGraphStyle : style minimaliste du graphe — arêtes fines,

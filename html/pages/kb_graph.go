@@ -2,7 +2,9 @@ package pages
 
 import (
 	"fmt"
-	"grz/internal/kb"
+	kb "grz/internal/domain/kb"
+	"math"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -52,6 +54,34 @@ const graphCSS = `.kg-edge {
 	.kg-node circle { transition: none; }
 }`
 
+const (
+	graphCenterX = 500.0
+	graphCenterY = 500.0
+	graphRadius  = 380.0
+)
+
+type graphNode struct {
+	ID string
+	X  float64
+	Y  float64
+}
+
+// graphNodes calculates SVG-specific circular coordinates for the graph view.
+func graphNodes(kbs []kb.KB) []graphNode {
+	sorted := slices.Clone(kbs)
+	slices.SortFunc(sorted, func(a, b kb.KB) int { return strings.Compare(a.ID, b.ID) })
+	nodes := make([]graphNode, 0, len(sorted))
+	for i, item := range sorted {
+		angle := 2 * math.Pi * float64(i) / float64(len(sorted))
+		nodes = append(nodes, graphNode{
+			ID: item.ID,
+			X:  graphCenterX + graphRadius*math.Cos(angle),
+			Y:  graphCenterY + graphRadius*math.Sin(angle),
+		})
+	}
+	return nodes
+}
+
 // graphScript : surlignage des arêtes du nœud survolé. Chaque nœud porte
 // data-id, chaque arête data-a/data-b : au survol (délégation par
 // événements souris), les arêtes liées reçoivent la classe kg-hot sans
@@ -99,8 +129,8 @@ func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 		return layout("Graphe des KB", currentPath, content)
 	}
 
-	positions := kb.GraphNodes(kbs) // positions en cercle, un seul calcul
-	posOf := map[string]kb.GraphNode{}
+	positions := graphNodes(kbs) // positions en cercle, un seul calcul
+	posOf := map[string]graphNode{}
 	for _, n := range positions {
 		posOf[n.ID] = n
 	}
@@ -140,7 +170,7 @@ func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 
 // edges rend une ligne SVG discrète (filet fin, bouts arrondis) par paire
 // de KB partageant un tag, avec le tag partagé en tooltip natif.
-func edges(kbs []kb.KB, posOf map[string]kb.GraphNode) []gomponents.Node {
+func edges(kbs []kb.KB, posOf map[string]graphNode) []gomponents.Node {
 	var lines []gomponents.Node
 	for _, e := range kb.GraphEdges(kbs) {
 		a, okA := posOf[e.A]
@@ -169,7 +199,7 @@ func edges(kbs []kb.KB, posOf map[string]kb.GraphNode) []gomponents.Node {
 // (posé SOUS le point pour la moitié basse du cercle, au-dessus sinon, pour
 // éviter les chevauchements), un halo sombre (paint-order) et un tooltip
 // natif (ID, erreur, tags). data-id relie le nœud au surlignage des arêtes.
-func nodes(positions []kb.GraphNode, byID map[string]kb.KB) []gomponents.Node {
+func nodes(positions []graphNode, byID map[string]kb.KB) []gomponents.Node {
 	var nodes []gomponents.Node
 	for _, n := range positions {
 		labelY := n.Y - 24

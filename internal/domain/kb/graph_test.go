@@ -1,7 +1,6 @@
 package kb
 
 import (
-	"math"
 	"slices"
 	"testing"
 )
@@ -82,28 +81,6 @@ func TestFilterByTag(t *testing.T) {
 	want := []string{"KB-0001", "KB-0004"}
 	if !slices.Equal(got, want) {
 		t.Errorf("FilterByTag() = %v, want %v", got, want)
-	}
-}
-
-func TestGraphNodesOnCircle(t *testing.T) {
-	kbs := sampleGraph()[:4] // 4 nœuds triés par ID
-
-	nodes := GraphNodes(kbs)
-
-	if len(nodes) != 4 {
-		t.Fatalf("GraphNodes() = %d nœuds, want 4", len(nodes))
-	}
-	// 1er nœud : angle 0 → (cx + rayon, cy)
-	want := GraphNode{ID: "KB-0001", X: graphCenterX + graphRadius, Y: graphCenterY}
-	if nodes[0] != want {
-		t.Errorf("GraphNodes()[0] = %+v, want %+v", nodes[0], want)
-	}
-	// Tous les nœuds sont à ~graphRadius du centre
-	for _, n := range nodes {
-		d := math.Hypot(n.X-graphCenterX, n.Y-graphCenterY)
-		if math.Abs(d-graphRadius) > 1e-6 {
-			t.Errorf("nœud %s hors cercle : distance %.2f, want %.2f", n.ID, d, graphRadius)
-		}
 	}
 }
 
