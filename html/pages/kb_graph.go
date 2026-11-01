@@ -11,18 +11,71 @@ import (
 )
 
 // graphCSS : styles SVG — survol de nœud discret (le libellé s'éclaircit,
-// le point grandit doucement), transitions coupées si l'utilisateur préfère
-// les animations réduites.
-const graphCSS = `.kg-node circle {
+// le point grandit doucement), arêtes liées accentuées en jaune (kg-hot)
+// quand le pointeur survole un nœud, transitions coupées si l'utilisateur
+// préfère les animations réduites.
+// graphCSS : styles SVG — survol de nœud discret (le libellé s'éclaircit,
+// le point grandit doucement), arêtes liées accentuées en jaune (kg-hot)
+// quand le pointeur survole un nœud, transitions coupées si l'utilisateur
+// préfère les animations réduites. Couleurs via var(--g-*) : le même SVG
+// se colore selon le thème actif (dark par défaut / [data-theme=light]).
+// Les attributs de présentation SVG ne supportant pas var(), toutes les
+// couleurs passent par ces classes CSS.
+const graphCSS = `.kg-edge {
+	stroke: var(--g-sep);
+	stroke-opacity: 0.6;
+	stroke-width: 1;
+	stroke-linecap: round;
+}
+.kg-dot { fill: var(--g-cyan); }
+.kg-label {
+	fill: var(--g-base);
+	paint-order: stroke;
+	stroke: var(--g-bg);
+	stroke-width: 6;
+	stroke-linejoin: round;
+}
+.kg-node circle {
 	transform-box: fill-box;
 	transform-origin: center;
 	transition: transform 150ms ease;
 }
+.kg-node { cursor: pointer; }
 .kg-node:hover circle { transform: scale(1.5); }
-.kg-node:hover text { fill: #eee8d5; }
+.kg-node:hover .kg-label { fill: var(--g-hi); }
+.kg-hot {
+	stroke: var(--g-accent) !important;
+	stroke-opacity: 1 !important;
+	stroke-width: 2.5 !important;
+}
 @media (prefers-reduced-motion: reduce) {
 	.kg-node circle { transition: none; }
 }`
+
+// graphScript : surlignage des arêtes du nœud survolé. Chaque nœud porte
+// data-id, chaque arête data-a/data-b : au survol (délégation par
+// événements souris), les arêtes liées reçoivent la classe kg-hot sans
+// état global ni re-rendu.
+const graphScript = `/* kg-highlight-js : surlignage arêtes du nœud survolé */
+(function () {
+"use strict";
+var lines = document.querySelectorAll("svg line[data-a]");
+function setHot(id, on) {
+	for (var i = 0; i < lines.length; i++) {
+		var l = lines[i];
+		if (l.getAttribute("data-a") === id || l.getAttribute("data-b") === id) {
+			l.classList.toggle("kg-hot", on);
+		}
+	}
+}
+var nodes = document.querySelectorAll(".kg-node");
+for (var i = 0; i < nodes.length; i++) {
+	(function (node) {
+		node.addEventListener("mouseenter", function () { setHot(node.getAttribute("data-id"), true); });
+		node.addEventListener("mouseleave", function () { setHot(node.getAttribute("data-id"), false); });
+	})(nodes[i]);
+}
+})();`
 
 // PageKBGraph affiche la vue graphe globale : nœuds = KB, arêtes = tag
 // partagé (relation bidirectionnelle), sans librairie externe (SVG inline).
@@ -66,16 +119,19 @@ func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 					gomponents.Attr("aria-label", "Graphe des KB liées par tags"),
 
 					gomponents.El("style", gomponents.Raw(graphCSS)),
-					// Arêtes (derrière les nœuds)
+					// Arêtes (derrière les nœuds), liées à leurs KB via
+					// data-a/data-b pour le surlignage au survol.
 					gomponents.Group(edges(kbs, posOf)),
 					// Nœuds cliquables + libellés + tooltips
 					gomponents.Group(nodes(positions, byID)),
 				),
 			),
 			// Légende : une phrase, ce que montre le graphe
-			P(Class("text-xs text-g-muted"),
-				gomponents.Text("Un point par KB, une ligne par tag partagé. Cliquez un point pour ouvrir la fiche."),
+			P(Class("text-xs text-g-base"),
+				gomponents.Text("Un point par KB, une ligne par tag partagé. Survolez un point pour suivre ses liens, cliquez-le pour ouvrir la fiche."),
 			),
+			// Surlignage des arêtes du nœud survolé (dégradation douce sans JS)
+			gomponents.El("script", gomponents.Raw(graphScript)),
 		),
 	)
 
@@ -96,10 +152,10 @@ func edges(kbs []kb.KB, posOf map[string]kb.GraphNode) []gomponents.Node {
 			gomponents.El("line",
 				gomponents.Attr("x1", f(a.X)), gomponents.Attr("y1", f(a.Y)),
 				gomponents.Attr("x2", f(b.X)), gomponents.Attr("y2", f(b.Y)),
-				gomponents.Attr("stroke", "#28515a"), // filet solarisé (g-sep)
-				gomponents.Attr("stroke-width", "1"),
-				gomponents.Attr("stroke-opacity", "0.6"),
-				gomponents.Attr("stroke-linecap", "round"),
+				gomponents.Attr("class", "kg-edge"),
+				// Extrémités pour le surlignage kg-hot au survol du nœud
+				gomponents.Attr("data-a", e.A),
+				gomponents.Attr("data-b", e.B),
 				gomponents.El("title", gomponents.Text(edgeTooltip(e.Tags))),
 			),
 		)
@@ -107,33 +163,42 @@ func edges(kbs []kb.KB, posOf map[string]kb.GraphNode) []gomponents.Node {
 	return lines
 }
 
-// nodes rend chaque KB comme un point discret cliquable (.kg-node), avec un
-// libellé mono et un halo sombre (paint-order) pour rester lisible au
-// croisement des lignes, plus un tooltip natif (ID, erreur, tags).
+// nodes rend chaque KB comme un point discret cliquable (.kg-node) : une
+// zone de clic élargie (cercle transparent r=20, cible ≥ 24 px une fois le
+// viewBox ramené à ~700 px, WCAG 2.5.8), un point coloré, un libellé mono
+// (posé SOUS le point pour la moitié basse du cercle, au-dessus sinon, pour
+// éviter les chevauchements), un halo sombre (paint-order) et un tooltip
+// natif (ID, erreur, tags). data-id relie le nœud au surlignage des arêtes.
 func nodes(positions []kb.GraphNode, byID map[string]kb.KB) []gomponents.Node {
 	var nodes []gomponents.Node
 	for _, n := range positions {
+		labelY := n.Y - 24
+		if n.Y > 500 { // moitié basse : libellé sous le point
+			labelY = n.Y + 40
+		}
 		nodes = append(nodes,
 			gomponents.El("a",
 				gomponents.Attr("href", "/kb/detail?id="+n.ID),
 				gomponents.Attr("class", "kg-node"),
+				gomponents.Attr("data-id", n.ID),
 				gomponents.El("title", gomponents.Text(nodeTooltip(byID[n.ID], n.ID))),
+				// Zone de clic élargie (transparente, tactile inclus)
+				gomponents.El("circle",
+					gomponents.Attr("cx", f(n.X)), gomponents.Attr("cy", f(n.Y)),
+					gomponents.Attr("r", "20"),
+					gomponents.Attr("fill", "transparent"),
+				),
 				gomponents.El("circle",
 					gomponents.Attr("cx", f(n.X)), gomponents.Attr("cy", f(n.Y)),
 					gomponents.Attr("r", "8"),
-					gomponents.Attr("fill", "#2aa198"), // accent cyan solarisé
+					gomponents.Attr("class", "kg-dot"),
 				),
 				gomponents.El("text",
-					gomponents.Attr("x", f(n.X)), gomponents.Attr("y", f(n.Y-24)),
+					gomponents.Attr("x", f(n.X)), gomponents.Attr("y", f(labelY)),
 					gomponents.Attr("text-anchor", "middle"),
 					gomponents.Attr("font-size", "18"),
 					gomponents.Attr("font-family", "ui-monospace, monospace"),
-					gomponents.Attr("fill", "#839496"), // base0, calme
-					// Halo sombre derrière le texte (lisibilité sur les lignes)
-					gomponents.Attr("paint-order", "stroke"),
-					gomponents.Attr("stroke", "#002b36"),
-					gomponents.Attr("stroke-width", "6"),
-					gomponents.Attr("stroke-linejoin", "round"),
+					gomponents.Attr("class", "kg-label"),
 					gomponents.Text(n.ID),
 				),
 			),

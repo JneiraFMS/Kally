@@ -11,7 +11,7 @@ func BoutonCustom(texte string, estPrimaire bool) gomponents.Node {
 	if estPrimaire {
 		return Button(
 			Type("button"),
-			Class("px-4 py-2 rounded-lg text-[#002b36] bg-g-accent hover:brightness-110 font-medium transition"),
+			Class("px-4 py-2 rounded-lg text-g-ink bg-g-accent hover:brightness-110 font-medium transition"),
 			gomponents.Text(texte),
 		)
 	}
@@ -26,7 +26,7 @@ func BoutonCustom(texte string, estPrimaire bool) gomponents.Node {
 func BoutonSubmit(texte string) gomponents.Node {
 	return Button(
 		Type("submit"),
-		Class("px-4 py-2 rounded-lg text-[#002b36] bg-g-accent hover:brightness-110 font-medium transition"),
+		Class("px-4 py-2 rounded-lg text-g-ink bg-g-accent hover:brightness-110 font-medium transition"),
 		gomponents.Text(texte),
 	)
 }

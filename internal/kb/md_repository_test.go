@@ -205,3 +205,88 @@ func TestMDRepositoryBackwardCompatibleWithoutFrontMatter(t *testing.T) {
 		t.Errorf("FindByID() Erreur = %q, want \"ancienne\"", got.Erreur)
 	}
 }
+
+// TestMDRepositoryExists : Exists distingue fichier présent / absent / ID
+// invalide (l'ID sert de nom de fichier, donc normalization identique).
+func TestMDRepositoryExists(t *testing.T) {
+	dir := t.TempDir()
+	repo := NewMDRepository(dir)
+	ctx := context.Background()
+
+	exists, err := repo.Exists(ctx, "KB-0001")
+	if err != nil {
+		t.Fatalf("Exists() inattendu: %v", err)
+	}
+	if exists {
+		t.Error("Exists() = true sur répertoire vide, want false")
+	}
+
+	if err := repo.Save(ctx, mustKB(t, "KB-0001", "e", "n", "r")); err != nil {
+		t.Fatalf("Save() inattendu: %v", err)
+	}
+
+	exists, err = repo.Exists(ctx, "KB-0001")
+	if err != nil {
+		t.Fatalf("Exists() inattendu: %v", err)
+	}
+	if !exists {
+		t.Error("Exists() = false après Save(), want true")
+	}
+
+	exists, err = repo.Exists(ctx, "../secret")
+	if !errors.Is(err, ErrInvalidID) {
+		t.Errorf("Exists() error = %v, want ErrInvalidID", err)
+	}
+	if exists {
+		t.Error("Exists() = true pour un ID invalide, want false")
+	}
+}
+
+// TestMDRepositoryDeleteRemovesFile : Delete supprime le .md puis FindByID
+// doit tomber en ErrNotFound.
+func TestMDRepositoryDeleteRemovesFile(t *testing.T) {
+	dir := t.TempDir()
+	repo := NewMDRepository(dir)
+	ctx := context.Background()
+
+	if err := repo.Save(ctx, mustKB(t, "KB-0001", "e", "n", "r")); err != nil {
+		t.Fatalf("Save() inattendu: %v", err)
+	}
+
+	if err := repo.Delete(ctx, "KB-0001"); err != nil {
+		t.Fatalf("Delete() inattendu: %v", err)
+	}
+
+	if _, err := repo.FindByID(ctx, "KB-0001"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("FindByID() après Delete error = %v, want ErrNotFound", err)
+	}
+
+	// Le répertoire ne doit plus contenir que ce qu'on y a mis d'autre
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("Delete() a laissé des fichiers: %v", entries)
+	}
+}
+
+// TestMDRepositoryDeleteNotFound : supprimer une KB absente est une erreur
+// ErrNotFound (pas un succès silencieux).
+func TestMDRepositoryDeleteNotFound(t *testing.T) {
+	repo := NewMDRepository(t.TempDir())
+
+	if err := repo.Delete(context.Background(), "KB-INCONNU"); !errors.Is(err, ErrNotFound) {
+		t.Errorf("Delete() error = %v, want ErrNotFound", err)
+	}
+}
+
+// TestMDRepositoryDeleteRejectsInvalidID : l'ID sert de nom de fichier,
+// Delete applique la même validation que FindByID.
+func TestMDRepositoryDeleteRejectsInvalidID(t *testing.T) {
+	repo := NewMDRepository(t.TempDir())
+
+	if err := repo.Delete(context.Background(), "../secret"); !errors.Is(err, ErrInvalidID) {
+		t.Errorf("Delete() error = %v, want ErrInvalidID", err)
+	}
+}

@@ -43,6 +43,46 @@ func (r *MDRepository) Save(ctx context.Context, kb KB) error {
 	return nil
 }
 
+// Exists retourne true si le fichier {ID}.md existe. L'ID est validé comme
+// FindByID : il sert de nom de fichier.
+func (r *MDRepository) Exists(ctx context.Context, id string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, fmt.Errorf("kb md: %w", err)
+	}
+
+	if id == "" || !idPattern.MatchString(id) {
+		return false, ErrInvalidID
+	}
+
+	_, err := os.Stat(r.path(id))
+	if errors.Is(err, fs.ErrNotExist) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("kb md: stat %s: %w", id, err)
+	}
+	return true, nil
+}
+
+// Delete supprime le fichier {ID}.md, ou retourne ErrNotFound si absente.
+func (r *MDRepository) Delete(ctx context.Context, id string) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("kb md: %w", err)
+	}
+
+	if id == "" || !idPattern.MatchString(id) {
+		return ErrInvalidID
+	}
+
+	if err := os.Remove(r.path(id)); errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("kb md: %w: %s", ErrNotFound, id)
+	} else if err != nil {
+		return fmt.Errorf("kb md: suppression %s: %w", id, err)
+	}
+
+	return nil
+}
+
 // FindAll lit tous les fichiers .md du répertoire, triés par ID.
 func (r *MDRepository) FindAll(ctx context.Context) ([]KB, error) {
 	if err := ctx.Err(); err != nil {

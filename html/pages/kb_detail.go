@@ -12,22 +12,43 @@ import (
 // sous le titre, sections séparées par l'espace seul, KB liées.
 func PageKBDetail(currentPath string, k kb.KB, related []kb.KB) gomponents.Node {
 	sections := []gomponents.Node{
-		noteSection("Erreur", bodyOrEmpty(k.Erreur)),
-		noteSection("Notes", bodyOrEmpty(k.Notes)),
-		noteSection("Résolution", bodyOrEmpty(k.Resolution)),
+		noteSection("Erreur", monoBody(k.Erreur)),
+		noteSection("Notes", mdBody(k.Notes)),
+		noteSection("Résolution", mdBody(k.Resolution)),
 		relatedSection(related),
 	}
 
 	return layout("KB "+k.ID, currentPath, []gomponents.Node{
-		// Barre d'actions discrète (boutons secondaires sans bordure)
+		// Barre d'actions discrète (boutons secondaires sans bordure,
+		// suppression en rouge avec confirmation).
 		Div(Class("max-w-3xl mx-auto px-4 pt-5 flex justify-end gap-2"),
 			secondaryAction("/kb/edit?id="+k.ID, "Modifier"),
 			secondaryAction("/kb/graph", "Graphe"),
 			secondaryAction("/", "Retour"),
+			deleteButton(k.ID),
 		),
 
 		Note(k.ID, k.Tags, sections...),
 	})
+}
+
+// deleteButton est le bouton de suppression d'une KB : formulaire natif
+// POST /kb/delete (fonctionne sans JavaScript), confirmation fournie par
+// htmx (hx-confirm) quand il est actif. Style danger : texte rouge.
+func deleteButton(id string) gomponents.Node {
+	return Form(
+		Action("/kb/delete"),
+		Method("post"),
+		gomponents.Attr("hx-post", "/kb/delete"),
+		gomponents.Attr("hx-confirm", "Supprimer définitivement "+id+" ?"),
+		gomponents.Attr("hx-disabled-elt", "find button"),
+		Class("mx-2 mb-1"),
+		Input(Type("hidden"), Name("id"), Value(id)),
+		Button(Type("submit"),
+			Class("px-3.5 py-1.5 rounded-lg bg-g-block text-g-negative hover:bg-g-hover hover:brightness-125 text-xs transition-colors"),
+			gomponents.Text("Supprimer"),
+		),
+	)
 }
 
 // secondaryAction est un bouton d'action discret (bloc sans bordure).
@@ -56,12 +77,24 @@ func Note(titre string, tags []string, sections ...gomponents.Node) gomponents.N
 	)
 }
 
-// bodyOrEmpty rend le corps d'une section texte ; vide → "— vide —".
-func bodyOrEmpty(texte string) gomponents.Node {
+// monoBody rend le corps de la section Erreur : un <pre> monospace
+// (traces de pile alignées, frappées ligne à ligne), texte échappé par
+// gomponents.Text. Vide → « — vide — ».
+func monoBody(texte string) gomponents.Node {
 	if strings.TrimSpace(texte) == "" {
-		return I(Class("text-g-subdue"), gomponents.Text("— vide —"))
+		return I(Class("text-g-base"), gomponents.Text("— vide —"))
 	}
-	return Div(Class("leading-relaxed text-g-text whitespace-pre-wrap"), gomponents.Text(texte))
+	return Pre(Class("font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-g-text"),
+		gomponents.Text(texte))
+}
+
+// mdBody rend une section Notes/Résolution comme du markdown sûr (classe
+// « md » pour les styles). Vide → « — vide — ».
+func mdBody(texte string) gomponents.Node {
+	if strings.TrimSpace(texte) == "" {
+		return I(Class("text-g-base"), gomponents.Text("— vide —"))
+	}
+	return mdToNode(texte)
 }
 
 // noteSection rend une section : petit titre gras + corps. Les sections sont
@@ -77,7 +110,7 @@ func noteSection(titre string, body gomponents.Node) gomponents.Node {
 func relatedSection(related []kb.KB) gomponents.Node {
 	if len(related) == 0 {
 		return noteSection("KB liées",
-			I(Class("text-g-subdue"), gomponents.Text("Aucune KB liée par tag")),
+			I(Class("text-g-base"), gomponents.Text("Aucune KB liée par tag")),
 		)
 	}
 

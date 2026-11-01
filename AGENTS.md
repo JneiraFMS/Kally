@@ -748,3 +748,74 @@ Prioritize:
 3. **Testability**
 4. **Simplicity & Idiomatic Go**
 5. **Decoupling**
+
+---
+
+## 26. Server Instances & Port 8080 (Development Hygiene)
+
+The app binds permanently to `:8080` (`http.ListenAndServe(":8080", mux)` in `main.go`).
+
+Rules for any agent session or human developer testing the server locally:
+
+1. **Before starting** the server, free the port if an old instance holds it:
+   `fuser -k 8080/tcp` (or `pkill -f "grz"` for a previous build), and check with
+   `ss -tln | grep 8080`.
+2. **Never leave an instance running** at the end of a session. Explicitly kill
+   it: `fuser -k 8080/tcp; pkill -f "/path/to/grz"` — an orphaned process keeps
+   port 8080 occupied and silently breaks the next run (the startup log only
+   shows "port 8080 already in use" failure at exit).
+3. Prefer building a test binary in a scratch directory (e.g. `/tmp`) and
+   running `./grz` there, so the project's `data/kb/` directory stays clean:
+   test KBs must not pollute the real storage.
+4. **After smoke tests**, verify the port is actually released
+   (`ss -tln | grep 8080` returns nothing) before declaring the task complete.
+
+---
+
+## 27. Local CSS Generation (Tailwind, No CDN)
+
+The styles come from a **locally generated** stylesheet, embedded in the
+binary via `go:embed` (`web/assets.go`, served at `GET /assets/tailwind.css`).
+There is no Tailwind CDN or Node toolchain.
+
+- Source of truth for colors: `html/pages/palette.go` (Solarized constants).
+  `tailwind.config.js` mirrors them — tests (`html/pages/palette_test.go`)
+  fail if the two drift apart.
+- Utility classes live inside Go source strings (`html/**`, `web/**`,
+  `main.go`), scanned by the content globs in `tailwind.config.js`.
+- **Any change adding or renaming a utility class in Go requires
+  regenerating the stylesheet:**
+
+  ```bash
+  ./tools/build-css.sh          # one-shot generation (CLI standalone, pinned)
+  ./tools/build-css.sh --watch  # watch mode during development
+  ```
+
+  The script caches the `tailwindcss` standalone CLI (no Node) in
+  `$HOME/.cache/grz` and writes the minified output to
+  `web/static/tailwind.css`, which is committed with the binary-side embed.
+- Page-level styles (body, `.md` markdown sections, SVG graph) remain
+  **inline** in `layout.go` / `kb_graph.go`, consuming `var(--g-*)` —
+  do not hard-code hex colors in CSS strings; change the values in
+  `palette.go` instead.
+
+### Theming & Palette (Phases 3–4)
+
+- Colors are **CSS variables** (`--g-*`), generated in the inline `<style>`
+  by `layout.go` (`themeCSSRules`): `:root` = Solarized dark (default),
+  `[data-theme="light"]` = Solarized Light ladder (inverted canon).
+  `palette.go` holds both maps (`paletteDark`, `paletteLight`) — same token
+  set, tests fail on drift (`TestThemePalettes`, `TestLayoutThemeVarRules`).
+- Tailwind tokens in `tailwind.config.js` reference `var(--g-*)`; the theme
+  is switched at runtime via `<html data-theme="light|dark">` set by the
+  **anti-FOUC init script** (place it BEFORE the stylesheet link) and the
+  navbar toggle (`#theme-toggle`, persisted in localStorage `grz-theme`).
+  Default follows `prefers-color-scheme`.
+- SVG colors must go through **CSS classes** (`kg-edge`, `kg-dot`,
+  `kg-label` set in the SVG stylesheet, colors `var(--g-*)`) — presentation
+  attributes cannot use `var()`.
+- Markdown code highlighting: goldmark-highlighting + Chroma in **classes
+  mode** (`chromahtml.WithClasses(true)`, prefix `chroma-`) — never inline
+  colors. Token-family colors live in the inline stylesheet (`.chroma-*`)
+  using `var(--g-*)`; extended families (kd/kt/fm/mb/…): update the rules
+  in `layout.go` when a new lexer family shows up unstyled.
