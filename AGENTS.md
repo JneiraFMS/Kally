@@ -486,6 +486,10 @@ External dependencies should be replaced with simple **fakes** or mock implement
 
 Use Go table-driven tests (`struct{ name string; ... }`) for test case coverage.
 
+For performance-sensitive code, add benchmarks and compare before/after using
+`go test <package> -run '^$' -bench . -benchmem`. Keep optimizations that improve
+representative workloads without changing correctness or observable ordering.
+
 ---
 
 ### 10.2 Integration Tests

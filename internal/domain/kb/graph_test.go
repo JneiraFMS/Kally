@@ -1,6 +1,7 @@
 package kb
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 )
@@ -54,6 +55,26 @@ func TestRelatedExcludesSelfAndUntagged(t *testing.T) {
 	}
 	if rel := IDs(Related(kbs, c)); len(rel) != 0 {
 		t.Errorf("Related() pour une KB sans tag = %v, want vide", rel)
+	}
+}
+
+func TestRelatedOrdersBySharedTagCountThenID(t *testing.T) {
+	query, err := NewKB("KB-Q", "", "", "", "alpha", "beta")
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := []KB{
+		query,
+		mustGraphKB(t, "KB-Z", "alpha"),
+		mustGraphKB(t, "KB-B", "beta", "alpha"),
+		mustGraphKB(t, "KB-A", "beta", "alpha"),
+		mustGraphKB(t, "KB-X", "outside"),
+	}
+
+	got := IDs(Related(items, query))
+	want := []string{"KB-A", "KB-B", "KB-Z"}
+	if !slices.Equal(got, want) {
+		t.Errorf("Related() IDs = %v, want %v", got, want)
 	}
 }
 
@@ -144,6 +165,101 @@ func TestGraphEdgesSharedTagsSorted(t *testing.T) {
 	if !slices.Equal(edges[0].Tags, []string{"alpha", "zeta"}) {
 		t.Errorf("Tags partagés = %v, want [alpha zeta]", edges[0].Tags)
 	}
+}
+
+func TestGraphEdgesPreservesInputPairOrder(t *testing.T) {
+	items := []KB{
+		mustGraphKB(t, "KB-B", "shared"),
+		mustGraphKB(t, "KB-A", "shared"),
+		mustGraphKB(t, "KB-C", "shared"),
+	}
+
+	got := GraphEdges(items)
+	want := []GraphEdge{
+		{A: "KB-A", B: "KB-B", Tags: []string{"shared"}},
+		{A: "KB-B", B: "KB-C", Tags: []string{"shared"}},
+		{A: "KB-A", B: "KB-C", Tags: []string{"shared"}},
+	}
+	if !slices.EqualFunc(got, want, func(a, b GraphEdge) bool {
+		return a.A == b.A && a.B == b.B && slices.Equal(a.Tags, b.Tags)
+	}) {
+		t.Errorf("GraphEdges() = %+v, want %+v", got, want)
+	}
+}
+
+func BenchmarkGraphEdges(b *testing.B) {
+	items := benchmarkKBs(b, 500)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GraphEdges(items)
+	}
+}
+
+func BenchmarkGraphEdgesSparse(b *testing.B) {
+	items := make([]KB, 1000)
+	for i := range items {
+		item, err := NewKB(fmt.Sprintf("KB-%04d", i), "", "", "",
+			fmt.Sprintf("unique-%04d-a", i), fmt.Sprintf("unique-%04d-b", i))
+		if err != nil {
+			b.Fatal(err)
+		}
+		items[i] = item
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GraphEdges(items)
+	}
+}
+
+func BenchmarkGraphEdgesDense(b *testing.B) {
+	items := make([]KB, 500)
+	for i := range items {
+		items[i] = mustGraphKB(b, fmt.Sprintf("KB-%04d", i), "shared")
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		GraphEdges(items)
+	}
+}
+
+func BenchmarkRelated(b *testing.B) {
+	items := benchmarkKBs(b, 500)
+	query := items[0]
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		Related(items, query)
+	}
+}
+
+func mustGraphKB(t testing.TB, id string, tags ...string) KB {
+	t.Helper()
+	item, err := NewKB(id, "", "", "", tags...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return item
+}
+
+func benchmarkKBs(b *testing.B, count int) []KB {
+	b.Helper()
+	items := make([]KB, count)
+	for i := range items {
+		item, err := NewKB(fmt.Sprintf("KB-%04d", i), "", "", "",
+			fmt.Sprintf("tag-%02d", i%100),
+			fmt.Sprintf("tag-%02d", (i+17)%100),
+			fmt.Sprintf("tag-%02d", (i+41)%100),
+			fmt.Sprintf("tag-%02d", (i+63)%100),
+		)
+		if err != nil {
+			b.Fatal(err)
+		}
+		items[i] = item
+	}
+	return items
 }
 
 func TestTagStatsEmpty(t *testing.T) {

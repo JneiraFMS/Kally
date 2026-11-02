@@ -3,6 +3,7 @@ package pages
 import (
 	"bytes"
 	"log"
+	"sync"
 
 	"maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
@@ -27,6 +28,10 @@ var goldmarkOptions = []goldmark.Option{
 			chromahtml.ClassPrefix("chroma-"),
 		),
 	)),
+}
+
+var markdownPool = sync.Pool{
+	New: func() any { return goldmark.New(goldmarkOptions...) },
 }
 
 // codeBlockWrapper entoure les blocs fenced générés par goldmark d'un bouton
@@ -125,9 +130,11 @@ func codeCopyScriptNode() gomponents.Node {
 // En cas d'erreur de rendu, le texte brut est affiché (échappé par
 // gomponents.Text) plutôt qu'une fiche vide.
 func mdToNode(md string) gomponents.Node {
-	markdown := goldmark.New(goldmarkOptions...)
+	markdown := markdownPool.Get().(goldmark.Markdown)
 	var buf bytes.Buffer
-	if err := markdown.Convert([]byte(md), &buf); err != nil {
+	err := markdown.Convert([]byte(md), &buf)
+	markdownPool.Put(markdown)
+	if err != nil {
 		return Div(Class("md"), gomponents.Text(md))
 	}
 	return Div(Class("md"), gomponents.Raw(buf.String()))

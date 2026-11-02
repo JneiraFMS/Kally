@@ -3,6 +3,7 @@ package persistence
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -290,5 +291,25 @@ func TestMDRepositoryDeleteRejectsInvalidID(t *testing.T) {
 
 	if err := repo.Delete(context.Background(), "../secret"); !errors.Is(err, domainkb.ErrInvalidID) {
 		t.Errorf("Delete() error = %v, want ErrInvalidID", err)
+	}
+}
+
+func BenchmarkMDRepositoryFindAll(b *testing.B) {
+	repo := NewMDRepository(b.TempDir())
+	for i := 0; i < 500; i++ {
+		item, err := domainkb.NewKB(fmt.Sprintf("KB-%04d", i), "error", "notes", "resolution", "incident", "kpi")
+		if err != nil {
+			b.Fatal(err)
+		}
+		if err := repo.Save(context.Background(), item); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := repo.FindAll(context.Background()); err != nil {
+			b.Fatal(err)
+		}
 	}
 }

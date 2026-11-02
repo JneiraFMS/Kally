@@ -1,7 +1,10 @@
 package pages
 
 import (
+	"bytes"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	kb "grz/internal/domain/kb"
@@ -15,6 +18,41 @@ func markdownDetailHTML(t *testing.T, erreur, notes, resolution string) string {
 		t.Fatalf("NewKB(): %v", err)
 	}
 	return renderNode(t, PageKBDetail("/kb/detail", k, nil))
+}
+
+func BenchmarkMarkdownConversion(b *testing.B) {
+	markdown := strings.Repeat("Performance note with **bold text** and `inline code`.\n\n", 20) +
+		"```go\nfunc compute(value int) int { return value * 2 }\n```\n"
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mdToNode(markdown)
+	}
+}
+
+func TestMarkdownConversionConcurrent(t *testing.T) {
+	const workers = 16
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var output bytes.Buffer
+			if err := mdToNode("**bold**\n\n```go\nfunc main() { fmt.Println(1) }\n```").Render(&output); err != nil {
+				errs <- err
+				return
+			}
+			if !strings.Contains(output.String(), "chroma-kd") {
+				errs <- fmt.Errorf("concurrent Markdown render missing highlighted output")
+			}
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		t.Error(err)
+	}
 }
 
 // TestMarkdownCodeBlocksHighlighted : les blocs de code à langage connu

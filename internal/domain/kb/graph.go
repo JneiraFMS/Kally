@@ -64,14 +64,19 @@ func Related(kbs []KB, kb KB) []KB {
 		common int
 	}
 
-	var candidates []candidate
+	queryTags := make(map[string]struct{}, len(kb.Tags))
+	for _, tag := range kb.Tags {
+		queryTags[tag] = struct{}{}
+	}
+
+	candidates := make([]candidate, 0)
 	for _, other := range kbs {
 		if other.ID == kb.ID {
 			continue
 		}
 		common := 0
-		for _, tag := range kb.Tags {
-			if slices.Contains(other.Tags, tag) {
+		for _, tag := range other.Tags {
+			if _, ok := queryTags[tag]; ok {
 				common++
 			}
 		}
@@ -104,34 +109,91 @@ type GraphEdge struct {
 }
 
 // GraphEdges retourne les arêtes entre KB partageant au moins un tag,
-// avec les tags partagés.
+// avec les tags partagés. Les arêtes suivent l'ordre des paires d'entrée.
 func GraphEdges(kbs []KB) []GraphEdge {
-	var edges []GraphEdge
+	type pair struct{ first, second int }
 
-	for i, a := range kbs {
-		for _, b := range kbs[i+1:] {
-			if common := sharedTags(a, b); len(common) > 0 {
-				e := GraphEdge{A: a.ID, B: b.ID, Tags: common}
-				if e.A > e.B {
-					e.A, e.B = e.B, e.A
-				}
-				edges = append(edges, e)
+	indicesByTag := make(map[string][]int)
+	var candidatePairs uint64
+	for i, item := range kbs {
+		for _, tag := range item.Tags {
+			posting := indicesByTag[tag]
+			candidatePairs += uint64(len(posting))
+			indicesByTag[tag] = append(posting, i)
+		}
+	}
+	possiblePairs := uint64(len(kbs)) * uint64(max(len(kbs)-1, 0)) / 2
+	if candidatePairs >= possiblePairs/2 {
+		return graphEdgesDense(kbs)
+	}
+
+	// Sparse graphs are built from tag postings, avoiding an O(n²) scan.
+	sharedByPair := make(map[pair][]string)
+	for tag, indices := range indicesByTag {
+		for i, first := range indices {
+			for _, second := range indices[i+1:] {
+				key := pair{first: first, second: second}
+				sharedByPair[key] = append(sharedByPair[key], tag)
 			}
 		}
+	}
+	pairs := make([]pair, 0, len(sharedByPair))
+	for key := range sharedByPair {
+		pairs = append(pairs, key)
+	}
+	slices.SortFunc(pairs, func(a, b pair) int {
+		if a.first != b.first {
+			return a.first - b.first
+		}
+		return a.second - b.second
+	})
+
+	edges := make([]GraphEdge, 0, len(pairs))
+	for _, key := range pairs {
+		common := sharedByPair[key]
+		slices.Sort(common)
+		edge := GraphEdge{A: kbs[key.first].ID, B: kbs[key.second].ID, Tags: common}
+		if edge.A > edge.B {
+			edge.A, edge.B = edge.B, edge.A
+		}
+		edges = append(edges, edge)
 	}
 	return edges
 }
 
-// sharedTags retourne les tags communs aux deux KB, triés.
-func sharedTags(a, b KB) []string {
-	var common []string
-	for _, tag := range a.Tags {
-		if slices.Contains(b.Tags, tag) {
-			common = append(common, tag)
+func graphEdgesDense(kbs []KB) []GraphEdge {
+	tagSets := make([]map[string]struct{}, len(kbs))
+	for i, item := range kbs {
+		if len(item.Tags) == 0 {
+			continue
+		}
+		tagSets[i] = make(map[string]struct{}, len(item.Tags))
+		for _, tag := range item.Tags {
+			tagSets[i][tag] = struct{}{}
 		}
 	}
-	slices.Sort(common)
-	return common
+
+	edges := make([]GraphEdge, 0)
+	for i, a := range kbs {
+		for j := i + 1; j < len(kbs); j++ {
+			var common []string
+			for _, tag := range a.Tags {
+				if _, ok := tagSets[j][tag]; ok {
+					common = append(common, tag)
+				}
+			}
+			if len(common) == 0 {
+				continue
+			}
+			slices.Sort(common)
+			edge := GraphEdge{A: a.ID, B: kbs[j].ID, Tags: common}
+			if edge.A > edge.B {
+				edge.A, edge.B = edge.B, edge.A
+			}
+			edges = append(edges, edge)
+		}
+	}
+	return edges
 }
 
 // ByID retourne un pointeur sur la KB id dans la liste, ou nil si absente.

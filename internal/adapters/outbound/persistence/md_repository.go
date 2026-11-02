@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 
 	"grz/internal/application/ports/outbound"
@@ -102,7 +101,8 @@ func (r *MDRepository) FindAll(ctx context.Context) ([]domainkb.KB, error) {
 		}
 		items = append(items, *item)
 	}
-	sort.Slice(items, func(i, j int) bool { return items[i].ID < items[j].ID })
+	// os.ReadDir returns entries sorted by filename; stripping the common .md
+	// suffix preserves the same order by ID without a second sort.
 	return items, nil
 }
 
@@ -146,14 +146,16 @@ func parseMarkdown(id, raw string) domainkb.KB {
 	body, tags := parseFrontMatter(raw)
 	item.Tags = tags
 
-	var section *string
-	var lines []string
+	var section string
+	var hasSection bool
+	var hasLine bool
+	var content strings.Builder
 	flush := func() {
-		if section == nil {
+		if !hasSection {
 			return
 		}
-		text := strings.Trim(strings.Join(lines, "\n"), "\n")
-		switch *section {
+		text := strings.Trim(content.String(), "\n")
+		switch section {
 		case "Erreur":
 			item.Erreur = text
 		case "Notes":
@@ -161,53 +163,56 @@ func parseMarkdown(id, raw string) domainkb.KB {
 		case "Résolution":
 			item.Resolution = text
 		}
+		content.Reset()
+		hasLine = false
 	}
-	for _, line := range strings.Split(body, "\n") {
+	for {
+		line, rest, more := strings.Cut(body, "\n")
 		trimmed := strings.TrimSpace(line)
 		if strings.HasPrefix(trimmed, "## ") {
 			flush()
-			name := strings.TrimPrefix(trimmed, "## ")
-			section = &name
-			lines = nil
-			continue
+			section = strings.TrimPrefix(trimmed, "## ")
+			hasSection = true
+		} else if hasSection {
+			if hasLine {
+				content.WriteByte('\n')
+			}
+			content.WriteString(line)
+			hasLine = true
 		}
-		lines = append(lines, line)
+		if !more {
+			break
+		}
+		body = rest
 	}
 	flush()
 	return item
 }
 
+var frontMatterTagsPattern = regexp.MustCompile(`^tags:\s*\[([^\]]*)\]`)
+
 func parseFrontMatter(raw string) (body string, tags []string) {
 	if !strings.HasPrefix(raw, "---\n") {
 		return raw, nil
 	}
-	var fmLines []string
 	rest := raw[4:]
 	for {
-		idx := strings.Index(rest, "\n")
-		if idx == -1 {
+		line, next, more := strings.Cut(rest, "\n")
+		if !more {
 			return raw, nil
 		}
-		line := rest[:idx]
 		if line == "---" {
-			rest = rest[idx+1:]
-			break
+			return next, tags
 		}
-		fmLines = append(fmLines, line)
-		rest = rest[idx+1:]
-	}
-
-	re := regexp.MustCompile(`^tags:\s*\[([^\]]*)\]`)
-	for _, line := range fmLines {
-		if match := re.FindStringSubmatch(strings.TrimSpace(line)); match != nil {
+		if match := frontMatterTagsPattern.FindStringSubmatch(strings.TrimSpace(line)); match != nil {
 			for _, tag := range strings.Split(match[1], ",") {
 				if tag = strings.TrimSpace(tag); tag != "" {
 					tags = append(tags, tag)
 				}
 			}
 		}
+		rest = next
 	}
-	return rest, tags
 }
 
 var _ outbound.KBRepository = (*MDRepository)(nil)
