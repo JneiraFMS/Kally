@@ -158,53 +158,6 @@ func TestKBServiceListFiltreAnd(t *testing.T) {
 	}
 }
 
-// TestKBServiceJournal : le journal liste les KB préfixées journal-, de la
-// plus récente à la plus ancienne, et expose la note du jour quand elle
-// existe (sinon TodayEntry est nil et TodayExists est faux).
-func TestKBServiceJournal(t *testing.T) {
-	repo := newFakeRepository()
-	repo.items["KB-9"] = domainKB(t, "KB-9", "calcul")
-	repo.items["journal-2026-01-01"] = domainKB(t, "journal-2026-01-01", "journal")
-	repo.items["journal-2026-11-03"] = domainKB(t, "journal-2026-11-03", "journal")
-	service := NewKBService(repo)
-
-	ctx := context.Background()
-	page, err := service.Journal(ctx, "2026-11-02")
-	if err != nil {
-		t.Fatalf("Journal() inattendu: %v", err)
-	}
-
-	if page.Today != "2026-11-02" || page.TodayID != "journal-2026-11-02" {
-		t.Errorf("Journal() Today = %q, TodayID = %q, want 2026-11-02 / journal-2026-11-02", page.Today, page.TodayID)
-	}
-	if page.TodayExists || page.TodayEntry != nil {
-		t.Errorf("Journal() la note du jour (2026-11-02) n'existe pas : TodayExists=%v TodayEntry=%+v", page.TodayExists, page.TodayEntry)
-	}
-	want := []string{"journal-2026-11-03", "journal-2026-01-01"}
-	if !slices.Equal(domainkbIDs(page.Entries), want) {
-		t.Errorf("Journal() entrées = %v, want %v (ordres décroissant)", domainkbIDs(page.Entries), want)
-	}
-
-	// La note du jour existe : exposée via TodayEntry
-	page, err = service.Journal(ctx, "2026-11-03")
-	if err != nil {
-		t.Fatalf("Journal() inattendu: %v", err)
-	}
-	if !page.TodayExists || page.TodayEntry == nil || page.TodayEntry.ID != "journal-2026-11-03" {
-		t.Errorf("Journal() note du jour = %+v, want journal-2026-11-03", page.TodayEntry)
-	}
-}
-
-// domainkbIDs extrait les IDs d'entrées sans trier (le helper IDs du
-// domaine trierait et masquerait l'ordre du journal).
-func domainkbIDs(items []domainkb.KB) []string {
-	ids := make([]string, 0, len(items))
-	for _, item := range items {
-		ids = append(ids, item.ID)
-	}
-	return ids
-}
-
 func domainKB(t *testing.T, id string, tags ...string) domainkb.KB {
 	t.Helper()
 	item, err := domainkb.NewKB(id, "e", "n", "r", tags...)

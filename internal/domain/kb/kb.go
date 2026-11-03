@@ -92,3 +92,21 @@ func NormalizeTags(raw ...string) ([]string, error) {
 
 	return tags, nil
 }
+
+// NormalizeTagFilter nettoie un filtre de tags issu d'une requête HTTP :
+// minuscules, espaces coupés, vides et doublons retirés. Un tag aux
+// caractères interdits est ignoré (ne jamais échouer sur un filtre
+// utilisateur ; il ne matchera simplement rien).
+func NormalizeTagFilter(raw []string) []string {
+	tags := []string{}
+	for _, value := range raw {
+		tag := strings.ToLower(strings.TrimSpace(value))
+		if tag == "" || !tagPattern.MatchString(tag) {
+			continue
+		}
+		if !slices.Contains(tags, tag) {
+			tags = append(tags, tag)
+		}
+	}
+	return tags
+}

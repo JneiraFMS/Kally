@@ -58,6 +58,13 @@ func withValues(base []elements.ChampFormulaire, valeurs map[string]string) []el
 // zone de réponse (message éventuel). Partagé par la création et l'édition
 // pour que les deux formulaires restent identiques.
 func kbFormPage(currentPath, titre, action string, champs []elements.ChampFormulaire, message gomponents.Node) gomponents.Node {
+	return formPage(currentPath, titre, action, champs, message)
+}
+
+// formPage assemble une page de formulaire générique (KB comme journal) :
+// titre, formulaire pointant vers action (POST natif + htmx) et zone de
+// réponse où s'affiche le message du serveur.
+func formPage(currentPath, titre, action string, champs []elements.ChampFormulaire, message gomponents.Node) gomponents.Node {
 	var reponse []gomponents.Node
 	if message != nil {
 		reponse = append(reponse, message)
@@ -68,7 +75,6 @@ func kbFormPage(currentPath, titre, action string, champs []elements.ChampFormul
 			Div(Class("max-w-2xl space-y-5"),
 				H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text(titre)),
 
-				// Le formulaire pointe vers action (POST natif + htmx).
 				elements.FormCustomWithAction(champs, action, "Enregistrer"),
 
 				// Zone où s'affichera la réponse du serveur (htmx)

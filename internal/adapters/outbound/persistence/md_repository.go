@@ -95,6 +95,11 @@ func (r *MDRepository) FindAll(ctx context.Context) ([]domainkb.KB, error) {
 			continue
 		}
 		id := strings.TrimSuffix(entry.Name(), ".md")
+		// Les fichiers du journal (journal-<date>.md) cohabitent dans le
+		// même répertoire mais ne sont pas des KB : ni accueil ni graphe.
+		if strings.HasPrefix(id, journalFilePrefix) {
+			continue
+		}
 		item, err := r.read(id)
 		if err != nil {
 			return nil, err

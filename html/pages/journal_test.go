@@ -1,66 +1,68 @@
 package pages
 
 import (
-	"net/url"
 	"strings"
 	"testing"
 
 	"grz/internal/application/dto"
-	kb "grz/internal/domain/kb"
+	domainjournal "grz/internal/domain/journal"
 )
 
-func mustEntryKB(t *testing.T, id string, erreur string, tags ...string) kb.KB {
+// mustEntry construit une entrée valide pour les tests.
+func mustEntry(t *testing.T, date, content string) domainjournal.Entry {
 	t.Helper()
-	k, err := kb.NewKB(id, erreur, "notes", "résolution", tags...)
+	entry, err := domainjournal.New(date, content)
 	if err != nil {
-		t.Fatalf("NewKB(%q): %v", id, err)
+		t.Fatalf("New(%q): %v", date, err)
 	}
-	return k
+	return entry
 }
 
-// TestPageJournalInstructionDuJour : la note du jour — bouton de création
-// préremplie (id journal-<date> + tag journal) quand elle n'existe pas,
-// lien vers la fiche sinon.
+// TestPageJournalNoteDuJour : la note du jour — bouton de création quand
+// elle n'existe pas, lien vers sa fiche sinon.
 func TestPageJournalNoteDuJour(t *testing.T) {
-	jour := "2026-11-03"
-	todayID := "journal-" + jour
+	html := renderedPage(t, PageJournal("/", dto.JournalPage{Today: "2026-11-03", TodayExists: false}))
 
-	html := renderedPage(t, PageJournal("/", dto.JournalPage{Today: jour, TodayID: todayID}))
-	cible := "/kb/new?id=" + url.QueryEscape(todayID) + "&amp;tags=journal"
-	if !strings.Contains(html, cible) {
-		t.Errorf("PageJournal() sans bouton de création préremplie (%q):\n%s", cible, html)
+	if !strings.Contains(html, `href="/journal/new"`) {
+		t.Errorf("PageJournal() sans bouton de création:\n%s", html)
 	}
-	if strings.Contains(html, "/journal-2026") && !strings.Contains(html, todayID) {
-		t.Errorf("PageJournal() affiche une autre entrée que la note du jour")
+	if !strings.Contains(html, ">Créer la note du jour<") {
+		t.Errorf("PageJournal() sans libellé du bouton de création")
+	}
+	if strings.Contains(html, "Ouvrir la note du jour") {
+		t.Errorf("PageJournal() propose d'ouvrir une note inexistante")
 	}
 
-	entry := mustEntryKB(t, todayID, "panneau de substitution", "journal")
-	html = renderedPage(t, PageJournal("/", dto.JournalPage{
-		Today:       jour,
-		TodayID:     todayID,
-		TodayExists: true,
-		TodayEntry:  &entry,
-	}))
-	if !strings.Contains(html, "/kb/detail?id="+todayID) {
-		t.Errorf("PageJournal(existante) sans lien vers la fiche de la note du jour:\n%s", html)
+	entryExists := true
+	html = renderedPage(t, PageJournal("/", dto.JournalPage{Today: "2026-11-03", TodayExists: entryExists}))
+	if !strings.Contains(html, "/journal/2026-11-03") {
+		t.Errorf("PageJournal(existante) sans lien vers la note du jour:\n%s", html)
 	}
-	if !strings.Contains(html, "panneau de substitution") {
-		t.Errorf("PageJournal(existante) sans extrait de la note du jour")
+	if !strings.Contains(html, ">Ouvrir la note du jour<") {
+		t.Errorf("PageJournal(existante) sans libellé d'ouverture")
+	}
+	if strings.Contains(html, ">Créer la note du jour<") {
+		t.Errorf("PageJournal(existante) propose encore de créer la note du jour")
 	}
 }
 
 // TestPageJournalEntreesRecentesDAboard : les entrées du journal sont listées
-// dans l'ordre fourni (plus récentes d'abord, préparé par le service),
-// seules — les autres KB n'apparaissent jamais.
-func TestPageJournalEntreesRecentesDAboard(t *testing.T) {
-	entries := []kb.KB{
-		mustEntryKB(t, "journal-2026-11-03", "note recente", "journal"),
-		mustEntryKB(t, "journal-2026-01-15", "note ancienne", "journal"),
+// dans l'ordre fourni (plus récentes d'abord, préparé par le service), avec
+// un extrait de leur markdown libre.
+func TestPageJournalEntreesRecentesDavboard(t *testing.T) {
+	entries := []domainjournal.Entry{
+		mustEntry(t, "2026-11-03", "note recente"),
+		mustEntry(t, "2026-01-15", "note ancienne"),
 	}
 
 	html := renderedPage(t, PageJournal("/", dto.JournalPage{Entries: entries}))
 
-	rec, anc := strings.Index(html, "/kb/detail?id=journal-2026-11-03"), strings.Index(html, "/kb/detail?id=journal-2026-01-15")
+	// Contenu markdown : extrait en clair
+	if !strings.Contains(html, "note recente") || !strings.Contains(html, "note ancienne") {
+		t.Errorf("PageJournal() extrait absent:\n%s", html)
+	}
+	rec := strings.Index(html, "/journal/2026-11-03")
+	anc := strings.Index(html, "/journal/2026-01-15")
 	if rec < 0 || anc < 0 {
 		t.Fatalf("PageJournal() entrée manquante:\n%s", html)
 	}
@@ -80,20 +82,136 @@ func TestPageJournalAucuneEntree(t *testing.T) {
 	if !strings.Contains(html, "Pas encore d&#39;entrée") {
 		t.Errorf("PageJournal() sans état vide:\n%s", html)
 	}
-	if strings.Contains(html, "/kb/detail?id=journal-") {
-		t.Errorf("PageJournal(vide) liste des entrées inexistantes")
+	if strings.Contains(html, "Entrées précédentes") {
+		t.Errorf("PageJournal(vide) affiche une liste d'entrées")
 	}
 }
 
 // TestPageJournalNoNestedAnchors : aucun <a> imbriqué (HTML invalide).
 func TestPageJournalNoNestedAnchors(t *testing.T) {
-	entry := mustEntryKB(t, "journal-2026-11-03", "e", "journal")
 	page := dto.JournalPage{
 		Today:       "2026-11-03",
-		TodayID:     "journal-2026-11-03",
 		TodayExists: true,
-		TodayEntry:  &entry,
-		Entries:     []kb.KB{entry},
+		Entries:     []domainjournal.Entry{mustEntry(t, "2026-11-03", "e")},
 	}
 	noNestedAnchors(t, renderedPage(t, PageJournal("/", page)))
+}
+
+// TestPageJournalCreate : le formulaire de création est libre — la date du
+// jour est préselectionnée, le contenu est un textarea markdown, et les
+// anciens champs KB (Identifiant, Erreur, Tags) sont absents.
+func TestPageJournalCreate(t *testing.T) {
+	html := renderedPage(t, PageJournalCreateWith("/", FormulaireJournal{
+		Valeurs: map[string]string{"date": "2026-11-03"},
+	}))
+
+	if !strings.Contains(html, `type="date"`) || !strings.Contains(html, `value="2026-11-03"`) {
+		t.Errorf("PageJournalCreate() sans champ date prérempli:\n%s", html)
+	}
+	if !strings.Contains(html, `name="content"`) || !strings.Contains(html, "<textarea") {
+		t.Errorf("PageJournalCreate() sans textarea markdown")
+	}
+	if strings.Contains(html, "Identifiant de la KB") || strings.Contains(html, `name="id"`) {
+		t.Errorf("PageJournalCreate() expose encore le formulaire KB (Identifiant/E Tags)")
+	}
+	if strings.Contains(html, `name="tags"`) {
+		t.Errorf("PageJournalCreate() expose encore les tags")
+	}
+}
+
+// TestPageJournalEdit : le formulaire d'édition fige la date et préremplit
+// le contenu.
+func TestPageJournalEdit(t *testing.T) {
+	entry := mustEntry(t, "2026-11-03", "contenu note libre")
+	html := renderedPage(t, PageJournalEdit("/", entry))
+
+	if !strings.Contains(html, `value="2026-11-03"`) || !strings.Contains(html, "readonly") {
+		t.Errorf("PageJournalEdit() sans date figée:\n%s", html)
+	}
+	if !strings.Contains(html, "contenu note libre") {
+		t.Errorf("PageJournalEdit() sans contenu prérempli:\n%s", html)
+	}
+	if !strings.Contains(html, "3 novembre 2026") {
+		t.Errorf("PageJournalEdit() sans date en clair dans le titre")
+	}
+}
+
+// TestPageJournalEntry : la fiche affiche la date en clair, le markdown
+// rendu, la navigation jour et les actions Modifier/Supprimer.
+func TestPageJournalEntry(t *testing.T) {
+	page := dto.JournalEntryPage{
+		Entry: mustEntry(t, "2026-11-02", "une note avec du **gras**"),
+		Prev:  "2026-11-01",
+		Next:  "2026-11-03",
+	}
+	html := renderedPage(t, PageJournalEntry("/", page))
+
+	if !strings.Contains(html, "2 novembre 2026") {
+		t.Errorf("PageJournalEntry() sans date en clair:\n%s", html)
+	}
+	if !strings.Contains(html, "<strong>gras</strong>") {
+		t.Errorf("PageJournalEntry() markdown libre non rendu:\n%s", html)
+	}
+	if !strings.Contains(html, `href="/journal/2026-11-01" class=`) {
+		t.Errorf("PageJournalEntry() sans lien jour précédent")
+	}
+	if !strings.Contains(html, `href="/journal/2026-11-03" class=`) {
+		t.Errorf("PageJournalEntry() sans lien jour suivant")
+	}
+	if !strings.Contains(html, "/journal/2026-11-02/edit") {
+		t.Errorf("PageJournalEntry() sans action Modifier")
+	}
+	if !strings.Contains(html, `action="/journal/delete"`) || !strings.Contains(html, `name="date" value="2026-11-02"`) {
+		t.Errorf("PageJournalEntry() sans suppression datée:\n%s", html)
+	}
+}
+
+// TestPageJournalEntryNavigationExtrémités : un jour aux extrémités ne rend
+// que le voisin existant (pourtour invisible, jamais de lien mort).
+func TestPageJournalEntryNavigationExtremites(t *testing.T) {
+	page := dto.JournalEntryPage{
+		Entry: mustEntry(t, "2026-10-30", "la plus ancienne"),
+		Prev:  "",
+		Next:  "2026-11-01",
+	}
+	html := renderedPage(t, PageJournalEntry("/", page))
+
+	links := strings.Count(html, "/journal/2026-10-30")
+	if links < 1 {
+		t.Errorf("PageJournalEntry() le lien vers la note courante manque sur la suppression")
+	}
+	// Pas de lien mort vers un voisin absent
+	if strings.Contains(html, `href="/journal/""`) {
+		t.Errorf("PageJournalEntry() lien vers une date vide")
+	}
+	// Le voisin suivant existe et est cliquable
+	if !strings.Contains(html, `href="/journal/2026-11-01" class=`) {
+		t.Errorf("PageJournalEntry() sans lien jour suivant")
+	}
+}
+
+// TestPageJournalNoNestedAnchorsEntry : aucun <a> imbriqué dans la fiche.
+func TestPageJournalEntryNoNestedAnchors(t *testing.T) {
+	page := dto.JournalEntryPage{
+		Entry: mustEntry(t, "2026-11-02", "**note**"),
+		Prev:  "2026-11-01",
+		Next:  "2026-11-03",
+	}
+	noNestedAnchors(t, renderedPage(t, PageJournalEntry("/", page)))
+}
+
+// TestFormatDateFR : dates canoniques en clair, non canoniques rendues
+// brute — jamais d'index hors bornes.
+func TestFormatDateFR(t *testing.T) {
+	if got := formatDateFR("2026-11-03"); got != "3 novembre 2026" {
+		t.Errorf("formatDateFR() = %q", got)
+	}
+	if got := formatDateFR("2026-01-01"); got != "1 janvier 2026" {
+		t.Errorf("formatDateFR() = %q, want sans zéro initial", got)
+	}
+	for _, raw := range []string{"", "brouillon", "2026-00-01", "2026-13-01", "2026-01-32"} {
+		if got := formatDateFR(raw); got != raw {
+			t.Errorf("formatDateFR(%q) = %q, want brut", raw, got)
+		}
+	}
 }

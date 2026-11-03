@@ -100,14 +100,24 @@ The current implementation keeps those boundaries in these packages:
 
 ```text
 internal/domain/kb                          # KB entity and domain rules
-internal/application/usecases                # KB use-case orchestration
+internal/domain/journal                     # journal entry (free markdown, dated — Logseq)
+internal/application/usecases                # KBService and JournalService orchestration
 internal/application/dto                     # application input/output models
 internal/application/ports/{inbound,outbound} # application contracts
-internal/adapters/outbound/persistence       # Markdown file repository
-web                                          # inbound HTTP adapter
+internal/adapters/outbound/persistence       # Markdown file repositories (KB + journal)
+web                                          # inbound HTTP adapters (kb_handler, journal_handler)
 html/pages                                   # HTML presentation adapter
 main.go                                      # dependency composition root
 ```
+
+The journal is a **distinct domain** from KB: one entry per day, free
+markdown content, no ID/tags (the date is the identity, `YYYY-MM-DD`).
+Journal files live in the same `data/kb/` directory under the naming
+convention `journal-<date>.md`, owned by `MDJournalRepository`; the KB
+repository ignores them (index/journal exclusion, no migration). Journal
+routes: `GET /journal`, `GET /journal/new`, `POST /journal`,
+`GET /journal/{date}`, `GET /journal/{date}/edit`, `POST /journal/edit`,
+`POST /journal/delete`.
 
 Persistence formats and filesystem access belong in adapters; domain packages
 must not serialize entities or calculate presentation-specific layout. HTTP
@@ -631,6 +641,15 @@ Code must strictly adhere to standard Go formatting and linting conventions:
 * Run static analysis with `go vet` and `golangci-lint`.
 * Write clear, concise standard Go doc comments for exported types and functions.
 * Keep functions small and cyclomatic complexity low.
+
+`golangci-lint` est configuré par `.golangci.yml` (v2) : les dot-imports
+`import . "maragu.dev/gomponents/html"` sont l'idiome officiel de la
+bibliothèque, utilisé partout dans le projet — la règle `ST1001` de
+staticcheck y est explicitement désactivée. Le binaire est installé depuis
+la source (`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest`,
+disponible dans `~/go/bin`) : préférez toujours cette méthode, les binaires
+pré-compilés d'une version de Go incompatible échouent à typechecker le
+module sans raison apparente.
 
 ---
 

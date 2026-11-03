@@ -1,0 +1,13 @@
+version: "2"
+
+linters:
+  exclusions:
+    rules:
+      # L'idiome gomponents, utilisé dans tout le projet, repose sur le
+      # dot-import documenté par la bibliothèque :
+      #   import . "maragu.dev/gomponents/html"
+      # ST1001 (« should not use dot imports ») le signale par défaut ;
+      # c'est ici un choix assumé, on le désactive explicitement.
+      - linters:
+          - staticcheck
+        text: "ST1001"

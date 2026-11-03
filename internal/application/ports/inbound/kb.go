@@ -10,7 +10,6 @@ import (
 // KBApplication exposes the knowledge-base use cases to inbound adapters.
 type KBApplication interface {
 	List(ctx context.Context, tags ...string) ([]domainkb.KB, error)
-	Journal(ctx context.Context, today string) (dto.JournalPage, error)
 	Get(ctx context.Context, id string) (*domainkb.KB, error)
 	Detail(ctx context.Context, id string) (dto.KBDetail, error)
 	Create(ctx context.Context, input dto.KBInput) (domainkb.KB, error)

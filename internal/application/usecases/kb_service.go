@@ -41,28 +41,6 @@ func (s *KBService) List(ctx context.Context, tags ...string) ([]domainkb.KB, er
 	return items, nil
 }
 
-// Journal assembles the daily-journal page: entries whose ID starts with
-// the journal prefix, newest first, plus the state of today's note.
-// today (ex. "2026-11-03") is supplied by the inbound adapter so the
-// use case stays deterministic and testable.
-func (s *KBService) Journal(ctx context.Context, today string) (dto.JournalPage, error) {
-	items, err := s.repo.FindAll(ctx)
-	if err != nil {
-		return dto.JournalPage{}, err
-	}
-	entries := domainkb.FilterByIDPrefix(items, domainkb.JournalPrefix)
-
-	page := dto.JournalPage{Today: today, TodayID: domainkb.JournalPrefix + today, Entries: entries}
-	for i := range entries {
-		if entries[i].ID == page.TodayID {
-			page.TodayExists = true
-			page.TodayEntry = &entries[i]
-			break
-		}
-	}
-	return page, nil
-}
-
 // Get retrieves one knowledge base by ID.
 func (s *KBService) Get(ctx context.Context, id string) (*domainkb.KB, error) {
 	return s.repo.FindByID(ctx, id)

@@ -19,6 +19,12 @@ func main() {
 	kbApp := usecases.NewKBService(repo)
 	kbHandler := web.NewKBHandler(kbApp)
 
+	// Le journal partage le répertoire de stockage mais suit ses propres
+	// conventions de fichiers (journal-<date>.md, markdown libre).
+	journalRepo := persistence.NewMDJournalRepository(kbDataDir)
+	journalApp := usecases.NewJournalService(journalRepo)
+	journalHandler := web.NewJournalHandler(journalApp)
+
 	mux := http.NewServeMux()
 
 	// Feuille de styles locale (Tailwind généré), embarquée dans le binaire
@@ -27,8 +33,14 @@ func main() {
 	// Page d'accueil : cartes des KB existantes
 	mux.HandleFunc("GET /{$}", kbHandler.Home)
 
-	// Journal (inspiré Logseq) : note du jour + entrées récentes
-	mux.HandleFunc("GET /journal", kbHandler.ShowJournal)
+	// Journal (inspiré Logseq) : une note libre datée, plus de routes KB
+	mux.HandleFunc("GET /journal", journalHandler.Page)
+	mux.HandleFunc("GET /journal/new", journalHandler.ShowNewForm)
+	mux.HandleFunc("POST /journal", journalHandler.Create)
+	mux.HandleFunc("GET /journal/{date}", journalHandler.ShowEntry)
+	mux.HandleFunc("GET /journal/{date}/edit", journalHandler.ShowEditForm)
+	mux.HandleFunc("POST /journal/edit", journalHandler.UpdateEntry)
+	mux.HandleFunc("POST /journal/delete", journalHandler.Delete)
 
 	// Pages KB
 	mux.HandleFunc("GET /kb", kbHandler.List)

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
 	"grz/html/pages"
 	"grz/internal/application"
@@ -50,28 +49,9 @@ func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
-// ShowJournal displays the daily journal (Logseq-inspired): the note of the
-// day is creatable in one click, previous entries are listed newest first.
-func (h *KBHandler) ShowJournal(w http.ResponseWriter, r *http.Request) {
-	page, err := h.app.Journal(r.Context(), time.Now().Format("2006-01-02"))
-	if err != nil {
-		writeInternalError(w, err)
-		return
-	}
-	renderNode(w, pages.PageJournal(r.URL.Path, page))
-}
-
-// ShowNewForm displays the create form, pre-filled from the query
-// parameters (the journal page links to /kb/new?id=journal-<date>&tags=journal).
+// ShowNewForm displays the create form.
 func (h *KBHandler) ShowNewForm(w http.ResponseWriter, r *http.Request) {
-	valeurs := map[string]string{}
-	if id := r.URL.Query().Get("id"); id != "" {
-		valeurs["id"] = id
-	}
-	if tags := r.URL.Query().Get("tags"); tags != "" {
-		valeurs["tags"] = tags
-	}
-	renderNode(w, pages.PageKBCreateWith(r.URL.Path, pages.FormulaireKB{Valeurs: valeurs}))
+	renderNode(w, pages.PageKBCreate(r.URL.Path))
 }
 
 // ShowGraph displays the global knowledge-base graph.
@@ -131,18 +111,24 @@ func (h *KBHandler) UpdateForm(w http.ResponseWriter, r *http.Request) {
 	redirectToDetail(w, r, item.ID)
 }
 
-// renderFormError répond à une erreur de formulaire.
+// respondFormError répond à une erreur de formulaire (formes KB et journal).
 //
 // htmx n'échange pas le contenu d'une réponse 4xx/5xx : pour un échange htmx
 // on renvoie donc 200 + le message seul (la zone #reponse-serveur est
 // remplacée). Pour le flux natif (sans JavaScript), on renvoie la page
 // complète pré-remplie avec le statut d'erreur approprié.
-func (h *KBHandler) renderFormError(w http.ResponseWriter, r *http.Request, status int, message gomponents.Node, page func(pages.FormulaireKB) gomponents.Node) {
+func respondFormError(w http.ResponseWriter, r *http.Request, status int, message gomponents.Node, page gomponents.Node) {
 	if r.Header.Get("HX-Request") == "true" {
 		writeMessage(w, http.StatusOK, message)
 		return
 	}
-	writeMessage(w, status, page(pages.FormulaireKB{Valeurs: formValues(r), Message: message}))
+	writeMessage(w, status, page)
+}
+
+// renderFormError répond à une erreur de formulaire KB
+// (page complète pré-remplie en natif, message seul en htmx).
+func (h *KBHandler) renderFormError(w http.ResponseWriter, r *http.Request, status int, message gomponents.Node, page func(pages.FormulaireKB) gomponents.Node) {
+	respondFormError(w, r, status, message, page(pages.FormulaireKB{Valeurs: formValues(r), Message: message}))
 }
 
 // formValues collecte les valeurs saisies, indexées par name, pour

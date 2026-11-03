@@ -9,7 +9,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"grz/internal/application/usecases"
 	domainkb "grz/internal/domain/kb"
@@ -651,9 +650,15 @@ func TestKBHandlerValidationFocusUsesThemeClass(t *testing.T) {
 // Logseq) — seules les KB portant TOUS les tags sont listées.
 func TestKBHandlerHomeFiltrePlusieursTags(t *testing.T) {
 	repo := newFakeRepo()
-	seedKB(t, repo, "KB-0001", "incident", "kpi")
-	seedKB(t, repo, "KB-0002", "incident")
-	seedKB(t, repo, "KB-0003", "kpi")
+	if err := seedKB(t, repo, "KB-0001", "incident", "kpi"); err != nil {
+		t.Fatal(err)
+	}
+	if err := seedKB(t, repo, "KB-0002", "incident"); err != nil {
+		t.Fatal(err)
+	}
+	if err := seedKB(t, repo, "KB-0003", "kpi"); err != nil {
+		t.Fatal(err)
+	}
 	h := newTestHandler(repo)
 
 	req := httptest.NewRequest("GET", "/?tag=incident&tag=kpi", nil)
@@ -669,78 +674,6 @@ func TestKBHandlerHomeFiltrePlusieursTags(t *testing.T) {
 	}
 	if strings.Contains(body, "KB-0002") || strings.Contains(body, "KB-0003") {
 		t.Errorf("Home(multi tags) affiche une KB hors filtre AND: %s", body)
-	}
-}
-
-// TestKBHandlerJournalRendersEntriesAndToday : GET /journal liste les notes
-// journal-* (jamais les autres KB) et propose de créer la note du jour avec
-// le formulaire prérempli (id du jour + tag journal).
-func TestKBHandlerJournalRendersEntriesAndToday(t *testing.T) {
-	repo := newFakeRepo()
-	seedKB(t, repo, "journal-2026-01-01", "journal")
-	seedKB(t, repo, "KB-0001", "calcul")
-	h := newTestHandler(repo)
-
-	req := httptest.NewRequest("GET", "/journal", nil)
-	w := httptest.NewRecorder()
-	h.ShowJournal(w, req)
-
-	if w.Code != 200 {
-		t.Fatalf("ShowJournal() status = %d, want 200", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, "/kb/detail?id=journal-2026-01-01") {
-		t.Errorf("ShowJournal() sans entrée du journal: %s", body)
-	}
-	if strings.Contains(body, "KB-0001") {
-		t.Errorf("ShowJournal() liste une KB hors journal: %s", body)
-	}
-	today := time.Now().Format("2006-01-02")
-	// Le & de l'URL est échappé en &amp; dans le HTML sérialisé.
-	if !strings.Contains(body, "/kb/new?id=journal-"+today+"&amp;tags=journal") {
-		t.Errorf("ShowJournal() sans bouton note du jour préremplie (aujourd'hui %s): %s", today, body)
-	}
-}
-
-// TestKBHandlerJournalNoteDuJourExiste : quand la note du jour existe déjà,
-// la page journal pointe vers sa fiche (pas de bouton de création).
-func TestKBHandlerJournalNoteDuJourExiste(t *testing.T) {
-	repo := newFakeRepo()
-	today := time.Now().Format("2006-01-02")
-	seedKB(t, repo, "journal-"+today, "journal")
-	h := newTestHandler(repo)
-
-	req := httptest.NewRequest("GET", "/journal", nil)
-	w := httptest.NewRecorder()
-	h.ShowJournal(w, req)
-
-	body := w.Body.String()
-	if !strings.Contains(body, "/kb/detail?id=journal-"+today) {
-		t.Errorf("ShowJournal() sans lien vers la note du jour existante: %s", body)
-	}
-	if strings.Contains(body, "Créer la note du jour") {
-		t.Errorf("ShowJournal() propose encore de créer la note du jour: %s", body)
-	}
-}
-
-// TestKBHandlerShowNewFormPrefillFromQuery : les query params id/tags
-// préremplissent le formulaire (bouton « note du jour » du journal).
-func TestKBHandlerShowNewFormPrefillFromQuery(t *testing.T) {
-	h := newTestHandler(newFakeRepo())
-
-	req := httptest.NewRequest("GET", "/kb/new?id=journal-2026-11-03&tags=journal", nil)
-	w := httptest.NewRecorder()
-	h.ShowNewForm(w, req)
-
-	if w.Code != 200 {
-		t.Errorf("ShowNewForm() status = %d, want 200", w.Code)
-	}
-	body := w.Body.String()
-	if !strings.Contains(body, `value="journal-2026-11-03"`) {
-		t.Errorf("ShowNewForm() sans préremplissage de l'id: %s", body)
-	}
-	if !strings.Contains(body, `value="journal"`) {
-		t.Errorf("ShowNewForm() sans préremplissage des tags: %s", body)
 	}
 }
 

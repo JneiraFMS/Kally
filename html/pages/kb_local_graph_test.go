@@ -7,6 +7,17 @@ import (
 	kb "grz/internal/domain/kb"
 )
 
+// mustKB construit une KB valide pour les tests du mini-graphe
+// (signature historique : id, première ligne d'erreur, tags).
+func mustKB(t *testing.T, id, erreur string, tags ...string) kb.KB {
+	t.Helper()
+	k, err := kb.NewKB(id, erreur, "notes", "résolution", tags...)
+	if err != nil {
+		t.Fatalf("NewKB(%q): %v", id, err)
+	}
+	return k
+}
+
 // TestPageKBDetailLocalGraph : la fiche d'une KB liée embarque un
 // mini-graphe local (SVG, style Logseq) : la KB au centre (accent), ses
 // voisins cliquables, arêtes tagées. Sans voisin, pas de SVG.
@@ -16,8 +27,8 @@ func TestPageKBDetailLocalGraph(t *testing.T) {
 		t.Fatalf("NewKB(): %v", err)
 	}
 	related := []kb.KB{
-		mustEntryKB(t, "KB-0002", "Autre problème", "calcul", "kpi"),
-		mustEntryKB(t, "KB-0003", "Problème connexe", "kpi"),
+		mustKB(t, "KB-0002", "Autre problème", "calcul", "kpi"),
+		mustKB(t, "KB-0003", "Problème connexe", "kpi"),
 	}
 
 	html := renderNode(t, PageKBDetail("/kb/detail", k, related))
@@ -69,8 +80,8 @@ func TestPageKBDetailLocalGraphNoNestedAnchors(t *testing.T) {
 		t.Fatalf("NewKB(): %v", err)
 	}
 	related := []kb.KB{
-		mustEntryKB(t, "KB-0002", "Autre problème", "calcul", "kpi"),
-		mustEntryKB(t, "KB-0003", "Problème connexe", "kpi"),
+		mustKB(t, "KB-0002", "Autre problème", "calcul", "kpi"),
+		mustKB(t, "KB-0003", "Problème connexe", "kpi"),
 	}
 
 	noNestedAnchors(t, renderNode(t, PageKBDetail("/kb/detail", k, related)))
