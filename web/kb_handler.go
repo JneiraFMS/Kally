@@ -160,7 +160,7 @@ func (h *KBHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	redirectTo(w, r, "/")
 }
 
 // errorMessage builds a neutral HTML message; gomponents escapes its text.
@@ -200,14 +200,20 @@ func duplicateMessage(id string) gomponents.Node {
 	)
 }
 
-func redirectToDetail(w http.ResponseWriter, r *http.Request, id string) {
-	target := "/kb/detail?id=" + url.QueryEscape(id)
+// redirectTo navigue vers target. POST natif : 303 (le navigateur suit).
+// htmx : 200 + HX-Redirect — htmx suit une 303 et change la cible dans le
+// DOM, le navigateur resterait donc sur l'URL d'origine (KB supprimée).
+func redirectTo(w http.ResponseWriter, r *http.Request, target string) {
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("HX-Redirect", target)
 		w.WriteHeader(http.StatusOK)
 		return
 	}
 	http.Redirect(w, r, target, http.StatusSeeOther)
+}
+
+func redirectToDetail(w http.ResponseWriter, r *http.Request, id string) {
+	redirectTo(w, r, "/kb/detail?id="+url.QueryEscape(id))
 }
 
 func (h *KBHandler) fetch(w http.ResponseWriter, r *http.Request, id string) (*domainkb.KB, bool) {

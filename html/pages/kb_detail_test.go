@@ -32,9 +32,20 @@ func TestPageKBDetailRendersNoteStyle(t *testing.T) {
 
 	html := renderNode(t, PageKBDetail("/kb/detail", k, related))
 
-	// Titre de la note en H1
-	if !strings.Contains(html, ">KB-0001</h1>") {
+	// Titre de la note : h1 (sémantique) contenant le lien vers l'article
+	// ServiceNow de la KB, ouverture dans un nouvel onglet sécurisée.
+	if !strings.Contains(html, `<h1 class="font-mono`) {
 		t.Errorf("le titre de note n'est pas un H1:\n%s", html)
+	}
+	for _, want := range []string{
+		`href="https://airbus.service-now.com/kb_view.do?sysparm_article=`,
+		`target="_blank"`,
+		`rel="noopener noreferrer"`,
+		">KB-0001</a></h1>",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("le titre ne pointe pas l'article ServiceNow (%q):\n%s", want, html)
+		}
 	}
 
 	// Chaque section est un H2 suivi de son texte
@@ -59,14 +70,26 @@ func TestPageKBDetailRendersNoteStyle(t *testing.T) {
 		t.Errorf("badge tag cliquable manquant")
 	}
 
-	// KB liée par tag : lien bidirectionnel vers KB-0002
+	// KB liée par tag : navigation interne conservée + lien vers l'article
+	// ServiceNow, compact (pas les classes d'un titre).
 	if !strings.Contains(html, "/kb/detail?id=KB-0002") {
-		t.Errorf("lien vers KB liée manquant")
+		t.Errorf("lien interne vers KB liée manquant:\n%s", html)
+	}
+	if !strings.Contains(html, `sysparm_article=KB-0002`) {
+		t.Errorf("lien ServiceNow de la KB liée manquant:\n%s", html)
+	}
+	if strings.Contains(html, `text-xl font-semibold text-g-hi hover:underline">KB-0002`) {
+		t.Errorf("la KB liée réutilise les classes du titre (style de liste écrasé):\n%s", html)
 	}
 
 	// Pas les anciens blocs gris mono
 	if strings.Contains(html, "bg-gray-50") {
 		t.Errorf("ancien style bg-gray-50 encore présent")
+	}
+
+	// Aucun débris de débogage jeté dans la note
+	if strings.Contains(html, "sdfsdf") {
+		t.Errorf("débris de débogage rendu dans la note:\n%s", html)
 	}
 }
 

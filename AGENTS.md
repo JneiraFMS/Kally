@@ -877,6 +877,9 @@ htmx does **not** swap the target of a `4xx`/`5xx` response. Therefore:
   `409` duplicate). Values already typed are preserved through
   `pages.FormulaireKB{Valeurs, Message}` and `PageKBCreateWith` /
   `PageKBEditWith`.
+- Same rule for **navigation after a POST** (Create, Update, Delete via
+  `web.redirectTo`): htmx → `200 + HX-Redirect` (the AJAX request would
+  follow a 303 and stay on the current URL); native → `303`.
 - The faulty field is flagged with the `.field-error` class (outline
   `var(--g-negative-text)`), removed on the first `input` event. Never
   inject an inline `#dc322f` outline: colors must follow the active theme.
