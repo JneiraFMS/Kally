@@ -90,33 +90,48 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 	outline: 2px solid var(--g-cyan);
 	outline-offset: 2px;
 }
-/* Bouton de bascule de thème, dans la navbar */
+/* Champ signalé fautif par la validation (classe posée par kb_handler) :
+   contour d'erreur thémé, prioritaire sur le contour de focus clavier. */
+input.field-error, textarea.field-error,
+input.field-error:focus-visible, textarea.field-error:focus-visible {
+	outline: 2px solid var(--g-negative-text);
+	outline-offset: 2px;
+}
+/* Bouton de bascule de thème, dans la navbar : la zone cliquable vient des
+   classes utilitaires (px-2 py-3), la règle ne doit pas écraser le padding. */
 #theme-toggle {
-	color: var(--g-base);
+	color: var(--g-text);
 	background: none; border: none; cursor: pointer;
-	font: inherit; padding: 0;
+	font: inherit;
 }
 #theme-toggle:hover { color: var(--g-hi); }
 #theme-toggle:focus-visible { outline: 2px solid var(--g-cyan); outline-offset: 2px; }
 
 /* Sections markdown des fiches (classe md) : épaisseur réduite, fonds
    blocs, code mono, liens accentués — thème via var(--g-*). */
+/* Pas de débordement horizontal : les mots très longs (URL, jetons) se
+   replient à la place. hérite aux balises enfants. */
+.md { overflow-wrap: anywhere; }
 .md p { margin: 0.25rem 0; }
 .md ul, .md ol { margin: 0.25rem 0; padding-left: 1.25rem; }
-.md h1, .md h2, .md h3 {
-	font-size: 0.9rem; font-weight: 600; color: var(--g-hi);
-	margin: 0.5rem 0 0.25rem;
-}
+.md ul { list-style: disc; }
+.md ol { list-style: decimal; }
+.md h1 { font-size: 1.15rem; font-weight: 600; color: var(--g-hi); margin: 0.5rem 0 0.25rem; }
+.md h2 { font-size: 1.05rem; font-weight: 600; color: var(--g-hi); margin: 0.5rem 0 0.25rem; }
+.md h3 { font-size: 0.95rem; font-weight: 600; color: var(--g-hi); margin: 0.5rem 0 0.25rem; }
 .md code {
 	font: 12px ui-monospace, SFMono-Regular, monospace;
-	color: var(--g-hi); background: var(--g-widget);
+	color: var(--g-hi); background: var(--g-code);
 	padding: 0.1rem 0.3rem; border-radius: 0.25rem;
 }
 .md pre {
-	background: var(--g-widget); color: var(--g-text);
+	background: var(--g-code); color: var(--g-hi);
+	border: 1px solid var(--g-border);
 	border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.5rem 0;
-	overflow-x: auto;
 	font: 12px/1.5 ui-monospace, SFMono-Regular, monospace;
+	/* Page détail : les longues lignes se replient, jamais de barre
+	   de défilement horizontale. */
+	white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .md pre code { background: none; padding: 0; color: inherit; }
 .md-code-block { position: relative; }
@@ -127,34 +142,36 @@ a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visib
 	min-width: 2rem; min-height: 2rem;
 	display: flex; align-items: center; justify-content: center;
 	padding: 0.3rem;
-	background: var(--g-block); color: var(--g-base);
+	background: var(--g-block); color: var(--g-text);
 	font: 11px ui-sans-serif, system-ui, sans-serif;
 	cursor: pointer;
 }
 .md-code-copy:hover { color: var(--g-hi); }
 .md-code-copy:focus-visible { outline: 2px solid var(--g-cyan); outline-offset: 2px; }
 .md-code-copy:disabled { cursor: wait; opacity: 0.7; }
-.md a { color: var(--g-accent); text-decoration: underline; }
+.md a { color: var(--g-accent-text); text-decoration: underline; }
 .md blockquote {
 	border-left: 2px solid var(--g-sep); padding-left: 0.75rem;
-	color: var(--g-muted); margin: 0.25rem 0;
+	color: var(--g-text); margin: 0.25rem 0;
 }
 
 /* Coloration syntaxique (Chroma, mode classes) : familles token couvertes,
-   le reste hérite de la couleur du texte. Palette Solarized via var.
+   le reste hérite de la couleur du texte. Tokens g-syn-* calibrés pour
+   >= 4.5:1 sur g-code (les accents bruts g-cyan/g-positive/g-text
+   échoueraient sur cette surface plus claire).
    NB: kd/kv/kt/kr = variantes de mots-clés ; fm = fonction/méthode ;
    ss/sa = chaîne spéciale ; mb/mx = nombres ; nv = variable. */
 .chroma-k, .chroma-kd, .chroma-kn, .chroma-kp, .chroma-kr, .chroma-kv,
-.chroma-kt, .chroma-ow, .chroma-kc { color: var(--g-positive); font-weight: 600; }
+.chroma-kt, .chroma-ow, .chroma-kc { color: var(--g-syn-keyword); font-weight: 600; }
 .chroma-s, .chroma-s1, .chroma-s2, .chroma-sd, .chroma-se, .chroma-si,
 .chroma-sx, .chroma-ss, .chroma-sa, .chroma-m, .chroma-mi, .chroma-mf,
-.chroma-mh, .chroma-mb, .chroma-mx, .chroma-mo, .chroma-il { color: var(--g-cyan); }
+.chroma-mh, .chroma-mb, .chroma-mx, .chroma-mo, .chroma-il { color: var(--g-syn-string); }
 .chroma-c, .chroma-c1, .chroma-ch, .chroma-cm, .chroma-cs, .chroma-cp,
-.chroma-cd { color: var(--g-muted); font-style: italic; }
+.chroma-cd { color: var(--g-syn-comment); font-style: italic; }
 .chroma-nf, .chroma-fm, .chroma-na { color: var(--g-hi); font-weight: 600; }
-.chroma-nc, .chroma-nb, .chroma-no, .chroma-nn { color: var(--g-text); font-weight: 600; }
-.chroma-nv, .chroma-o { color: var(--g-base); }
-.chroma-err, .chroma-w { color: var(--g-negative); }`
+.chroma-nc, .chroma-nb, .chroma-no, .chroma-nn { color: var(--g-hi); font-weight: 600; }
+.chroma-nv, .chroma-o { color: var(--g-hi); }
+.chroma-err, .chroma-w { color: var(--g-syn-error); }`
 
 // layout assemble la structure HTML commune (head, scripts, navbar)
 // avec le thème Solarized commutable (dark par défaut).

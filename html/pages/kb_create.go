@@ -17,18 +17,62 @@ var kbFormFields = []elements.ChampFormulaire{
 	{Nom: "tags", Type: "text", Label: "Tags (séparés par espace ou virgule) :"},
 }
 
+// FormulaireKB transporte l'état d'un formulaire de KB rendu après une
+// erreur : valeurs déjà saisies (clé = name du champ) et message à afficher
+// dans la zone #reponse-serveur. Les champs en lecture seule ne sont jamais
+// écrasés par Valeurs.
+type FormulaireKB struct {
+	Valeurs map[string]string
+	Message gomponents.Node
+}
+
 // PageKBCreate affiche le formulaire de création d'une KB.
 func PageKBCreate(currentPath string) gomponents.Node {
-	return layout("Créer une KB", currentPath, []gomponents.Node{
+	return PageKBCreateWith(currentPath, FormulaireKB{})
+}
+
+// PageKBCreateWith affiche le formulaire de création en conservant les
+// valeurs saisies et le message de validation (flux sans JavaScript).
+func PageKBCreateWith(currentPath string, form FormulaireKB) gomponents.Node {
+	return kbFormPage(currentPath, "Créer une KB", "/kb",
+		withValues(kbFormFields, form.Valeurs), form.Message)
+}
+
+// withValues retourne une copie des champs où les valeurs fournies
+// remplacent celles d'origine (hors champs en lecture seule).
+func withValues(base []elements.ChampFormulaire, valeurs map[string]string) []elements.ChampFormulaire {
+	champs := make([]elements.ChampFormulaire, len(base))
+	copy(champs, base)
+	for i := range champs {
+		if champs[i].LectureSeule {
+			continue
+		}
+		if valeur, ok := valeurs[champs[i].Nom]; ok {
+			champs[i].Valeur = valeur
+		}
+	}
+	return champs
+}
+
+// kbFormPage assemble une page de formulaire de KB : titre, formulaire et
+// zone de réponse (message éventuel). Partagé par la création et l'édition
+// pour que les deux formulaires restent identiques.
+func kbFormPage(currentPath, titre, action string, champs []elements.ChampFormulaire, message gomponents.Node) gomponents.Node {
+	var reponse []gomponents.Node
+	if message != nil {
+		reponse = append(reponse, message)
+	}
+
+	return layout(titre, currentPath, []gomponents.Node{
 		Div(Class("max-w-5xl mx-auto px-6 py-6"),
 			Div(Class("max-w-2xl space-y-5"),
-				H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text("Créer une KB")),
+				H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text(titre)),
 
-				// Le formulaire pointe vers POST /kb
-				elements.FormCustomWithAction(kbFormFields, "/kb", "Enregistrer"),
+				// Le formulaire pointe vers action (POST natif + htmx).
+				elements.FormCustomWithAction(champs, action, "Enregistrer"),
 
 				// Zone où s'affichera la réponse du serveur (htmx)
-				Div(ID("reponse-serveur"), Class("text-g-text font-semibold")),
+				Div(ID("reponse-serveur"), Class("text-g-text font-semibold"), gomponents.Group(reponse)),
 			),
 		),
 	})

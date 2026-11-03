@@ -47,10 +47,10 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 	// Tag de filtre actif, avec lien pour le retirer
 	if filtreTag != "" {
 		header = append(header,
-			Div(Class("inline-flex items-center gap-2 px-3 py-1 rounded-full bg-g-block text-g-base text-xs"),
+			Div(Class("inline-flex items-center gap-2 px-3 py-1 rounded-full bg-g-block text-g-text text-xs"),
 				gomponents.Text("Filtré par"),
 				Span(Class("font-mono text-g-hi"), gomponents.Text(filtreTag)),
-				A(Href("/"), Class("text-g-muted hover:text-g-hi"), gomponents.Text("×")),
+				A(Href("/"), Class("text-g-text hover:text-g-hi"), gomponents.Text("×")),
 			),
 		)
 	}
@@ -66,10 +66,10 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 					Type("search"),
 					AutoComplete("off"),
 					Placeholder("Recherche fuzzy… (touche / pour filtre instantané)"),
-					Class("w-full px-4 py-2.5 rounded-lg bg-g-block border border-g-border text-g-hi placeholder-g-muted focus:border-g-accent outline-none transition"),
+					Class("w-full px-4 py-2.5 rounded-lg bg-g-block border border-g-border text-g-hi placeholder-g-text focus:border-g-accent outline-none transition"),
 				),
 				Span(ID("kb-search-count"),
-					Class("absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-g-base pointer-events-none"),
+					Class("absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-g-text pointer-events-none"),
 					gomponents.Text(""),
 				),
 			),
@@ -86,8 +86,8 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 		content = append(content,
 			Div(Class("max-w-5xl mx-auto px-6 pb-8"),
 				Div(Class("bg-g-widget rounded-xl p-10 text-center space-y-2"),
-					P(Class("text-g-base"), gomponents.Text("Aucune KB avec le tag « "+filtreTag+" ».")),
-					A(Href("/"), Class("text-g-base hover:text-g-hi hover:underline"), gomponents.Text("Voir toutes les KB")),
+					P(Class("text-g-text"), gomponents.Text("Aucune KB avec le tag « "+filtreTag+" ».")),
+					A(Href("/"), Class("text-g-text hover:text-g-hi hover:underline"), gomponents.Text("Voir toutes les KB")),
 				),
 			),
 		)
@@ -95,8 +95,8 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 		content = append(content,
 			Div(Class("max-w-5xl mx-auto px-6 pb-8"),
 				Div(Class("bg-g-widget rounded-xl p-10 text-center space-y-2"),
-					P(Class("text-g-base"), gomponents.Text("Aucune KB enregistrée.")),
-					A(Href("/kb/new"), Class("text-g-base hover:text-g-hi hover:underline"), gomponents.Text("Créer une première KB")),
+					P(Class("text-g-text"), gomponents.Text("Aucune KB enregistrée.")),
+					A(Href("/kb/new"), Class("text-g-text hover:text-g-hi hover:underline"), gomponents.Text("Créer une première KB")),
 				),
 			),
 		)
@@ -113,7 +113,7 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 	if hasKBs {
 		content = append(content,
 			Div(ID("kb-no-results"), Class("hidden max-w-5xl mx-auto px-6 pb-8"),
-				Div(Class("bg-g-widget rounded-xl p-10 text-center text-g-base"), gomponents.Text("")),
+				Div(Class("bg-g-widget rounded-xl p-10 text-center text-g-text"), gomponents.Text("")),
 			),
 			searchScriptNode(),
 		)
@@ -139,7 +139,7 @@ func kbCard(k kb.KB) gomponents.Node {
 			Href("/kb/detail?id="+k.ID),
 			Class("absolute inset-0 rounded-xl"),
 		),
-		Span(Class("inline-block px-2.5 py-0.5 rounded-full bg-g-block font-mono text-xs font-semibold text-g-accent"),
+		Span(Class("inline-block px-2.5 py-0.5 rounded-full bg-g-block font-mono text-xs font-semibold text-g-accent-text"),
 			gomponents.Text(k.ID),
 		),
 		P(Class("text-g-text text-sm line-clamp-3"),

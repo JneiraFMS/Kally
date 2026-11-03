@@ -122,6 +122,34 @@ func TestPageKBDetailRendersSectionsContent(t *testing.T) {
 	}
 }
 
+// TestPageKBDetailErreurCodeSurface : la trace de la section Erreur utilise
+// la surface de code (g-code) et un texte g-hi : g-text tomberait sous
+// 4.5:1 sur ce fond plus clair.
+func TestPageKBDetailErreurCodeSurface(t *testing.T) {
+	k, err := kb.NewKB("KB-0001", "panic: runtime error", "", "")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+
+	html := renderNode(t, PageKBDetail("/kb/detail", k, nil))
+
+	start := strings.Index(html, `<pre class="font-mono`)
+	if start < 0 {
+		t.Fatalf("section Erreur sans <pre> monospace:\n%s", html)
+	}
+	end := strings.Index(html[start:], ">")
+	tag := html[start : start+end+1]
+
+	for _, want := range []string{"bg-g-code", "text-g-hi", "border-g-border"} {
+		if !strings.Contains(tag, want) {
+			t.Errorf("le <pre> de la section Erreur n'a pas %q :\n%s", want, tag)
+		}
+	}
+	if strings.Contains(tag, "text-g-text") {
+		t.Errorf("le <pre> de la section Erreur garde text-g-text (contraste insuffisant sur g-code) :\n%s", tag)
+	}
+}
+
 // TestPageKBDetailMarkdownIsSafe : du HTML brut dans le markdown ne doit pas
 // ressortir tel quel (aucune option Unsafe).
 func TestPageKBDetailMarkdownIsSafe(t *testing.T) {
@@ -158,8 +186,8 @@ func TestPageKBDetailEmptySectionsStillMarked(t *testing.T) {
 	if strings.Contains(html, "text-g-subdue") {
 		t.Errorf("mentions importantes encore en g-subdue (contraste):\n%s", html)
 	}
-	if !strings.Contains(html, `<i class="text-g-base"`) {
-		t.Errorf("mention « vide » sans classe contrastée g-base:\n%s", html)
+	if !strings.Contains(html, `<i class="text-g-text"`) {
+		t.Errorf("mention « vide » sans classe contrastée g-text:\n%s", html)
 	}
 }
 

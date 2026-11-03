@@ -133,3 +133,18 @@ func TestPageKBGraphLabelSide(t *testing.T) {
 		t.Errorf("KB-3 (moitié haute) : label attendu au-dessus du nœud (y=146.9)")
 	}
 }
+
+// TestPageKBGraphHeaderAlignment : l'en-tête est une rangée flex dont les
+// deux enfants sont centrés verticalement. `space-y-4` y ajoutait une marge
+// haute au lien « Retour » (8 px de décalage avec le titre) : la rangée ne
+// doit pas mélanger l'espacement vertical empilé et l'alignement centré.
+func TestPageKBGraphHeaderAlignment(t *testing.T) {
+	html := renderedPage(t, PageKBGraph("/kb/graph", nil))
+
+	if strings.Contains(html, "space-y-4 flex") {
+		t.Errorf("en-tête du graphe : space-y-4 sur une rangée flex (décalage vertical du lien Retour)")
+	}
+	if !strings.Contains(html, "flex items-center justify-between") {
+		t.Errorf("en-tête du graphe sans alignement centré:\n%s", html)
+	}
+}

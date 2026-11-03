@@ -12,6 +12,8 @@ import (
 
 	"grz/internal/application/usecases"
 	domainkb "grz/internal/domain/kb"
+
+	"maragu.dev/gomponents"
 )
 
 // fakeRepo est un double simple du application repository port pour les tests.
@@ -465,4 +467,158 @@ func TestKBHandlerDetailShowsRelatedKBs(t *testing.T) {
 	if !strings.Contains(w.Body.String(), "Aucune KB liée") {
 		t.Errorf("Detail() devrait signaler l'absence de KB liée")
 	}
+}
+
+// htmx ne remplace pas la cible d'une réponse 4xx/5xx : une erreur de
+// validation doit donc partir en 200 avec le message seul, sinon l'échange
+// ne montre rien à l'utilisateur.
+func TestKBHandlerCreateInvalidHTMXSwapsMessage(t *testing.T) {
+	h := newTestHandler(newFakeRepo())
+
+	form := url.Values{"id": {"../hack"}, "erreur": {"e"}, "notes": {"n"}, "resolution": {"r"}}
+	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Create() status = %d, want 200 (htmx ignore les 4xx)", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "identifiant invalide") {
+		t.Errorf("Create() sans message de validation: %s", body)
+	}
+	if !strings.Contains(body, "field-error") {
+		t.Errorf("Create() sans signalement du champ fautif: %s", body)
+	}
+	if strings.Contains(body, "<html") {
+		t.Errorf("Create() renvoie une page complète dans #reponse-serveur")
+	}
+}
+
+// TestKBHandlerCreateDuplicateHTMXSwapsMessage : le doublon suit la même
+// règle (200 + message) pour être visible sous le formulaire.
+func TestKBHandlerCreateDuplicateHTMXSwapsMessage(t *testing.T) {
+	repo := seedRepo(t, "KB-0001")
+	h := newTestHandler(repo)
+
+	form := url.Values{"id": {"KB-0001"}, "erreur": {"e"}, "notes": {"n"}, "resolution": {"r"}}
+	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Create(doublon) status = %d, want 200 (htmx ignore les 4xx)", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "existe déjà") || !strings.Contains(body, "/kb/edit?id=KB-0001") {
+		t.Errorf("Create(doublon) sans message ni lien vers la modification: %s", body)
+	}
+}
+
+// TestKBHandlerCreateInvalidNativeKeepsValues : sans JavaScript, la page
+// complète est renvoyée avec le message et les valeurs déjà saisies.
+func TestKBHandlerCreateInvalidNativeKeepsValues(t *testing.T) {
+	h := newTestHandler(newFakeRepo())
+
+	form := url.Values{
+		"id":         {"../hack"},
+		"erreur":     {"trace conservee"},
+		"notes":      {"notes saisies par l'utilisateur"},
+		"resolution": {"r"},
+	}
+	req := httptest.NewRequest("POST", "/kb", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	h.Create(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("Create() status = %d, want 400 (flux natif)", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "identifiant invalide") {
+		t.Errorf("Create() sans message de validation: %s", body)
+	}
+	if !strings.Contains(body, "notes saisies par l&#39;utilisateur") &&
+		!strings.Contains(body, "notes saisies par l'utilisateur") {
+		t.Errorf("Create() ne conserve pas les notes saisies: %s", body)
+	}
+	if !strings.Contains(body, `id="reponse-serveur"`) {
+		t.Errorf("Create() sans zone de réponse dans la page renvoyée")
+	}
+}
+
+// TestKBHandlerUpdateInvalidKeepsValues : même exigence sur le formulaire
+// d'édition (valeurs renvoyées en natif, message seul en htmx).
+func TestKBHandlerUpdateInvalidKeepsValues(t *testing.T) {
+	repo := seedRepo(t, "KB-0001")
+	h := newTestHandler(repo)
+
+	form := url.Values{
+		"id":         {"KB-0001"},
+		"erreur":     {"e"},
+		"notes":      {"notes modifiees"},
+		"resolution": {"r"},
+		"tags":       {"bad tag!"},
+	}
+
+	// Flux natif : page complète, valeurs conservées, 400.
+	req := httptest.NewRequest("POST", "/kb/edit", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+	h.UpdateForm(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("UpdateForm() status = %d, want 400", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "notes modifiees") {
+		t.Errorf("UpdateForm() ne conserve pas les notes modifiées: %s", body)
+	}
+	if !strings.Contains(body, "invalide") {
+		t.Errorf("UpdateForm() sans message de validation: %s", body)
+	}
+
+	// Flux htmx : 200 + message seul.
+	req = httptest.NewRequest("POST", "/kb/edit", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	w = httptest.NewRecorder()
+	h.UpdateForm(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("UpdateForm(htmx) status = %d, want 200", w.Code)
+	}
+	if body := w.Body.String(); !strings.Contains(body, "invalide") || strings.Contains(body, "<html") {
+		t.Errorf("UpdateForm(htmx) doit renvoyer le message seul: %s", body)
+	}
+}
+
+// TestKBHandlerValidationFocusUsesThemeClass : le champ fautif est signalé
+// par une classe (thème clair/sombre) et non par un contour inline dont la
+// couleur est codée en dur.
+func TestKBHandlerValidationFocusUsesThemeClass(t *testing.T) {
+	body := renderString(t, validationMessage(domainkb.ErrInvalidID))
+
+	if strings.Contains(body, "#dc322f") {
+		t.Errorf("couleur d'erreur codée en dur: %s", body)
+	}
+	if !strings.Contains(body, "classList.add") || !strings.Contains(body, "field-error") {
+		t.Errorf("le champ fautif n'est pas signalé par la classe field-error: %s", body)
+	}
+}
+
+func renderString(t *testing.T, node gomponents.Node) string {
+	t.Helper()
+	var buf strings.Builder
+	if err := node.Render(&buf); err != nil {
+		t.Fatalf("Render(): %v", err)
+	}
+	return buf.String()
 }
