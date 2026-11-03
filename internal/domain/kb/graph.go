@@ -56,6 +56,30 @@ func FilterByTag(kbs []KB, tag string) []KB {
 	return filtered
 }
 
+// FilterByAllTags retourne les KB portant TOUS les tags fournis (requête
+// AND, à la Logseq), dans l'ordre d'entrée. Sans tag, aucune KB n'est
+// filtrée.
+func FilterByAllTags(kbs []KB, tags ...string) []KB {
+	if len(tags) == 0 {
+		return slices.Clone(kbs)
+	}
+
+	filtered := []KB{}
+	for _, k := range kbs {
+		hasAll := true
+		for _, tag := range tags {
+			if !slices.Contains(k.Tags, tag) {
+				hasAll = false
+				break
+			}
+		}
+		if hasAll {
+			filtered = append(filtered, k)
+		}
+	}
+	return filtered
+}
+
 // Related retourne les KB partageant au moins un tag avec kb (relation
 // symétrique : A↔B), triées par nombre de tags communs puis ID.
 func Related(kbs []KB, kb KB) []KB {

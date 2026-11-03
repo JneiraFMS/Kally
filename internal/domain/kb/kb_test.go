@@ -117,3 +117,19 @@ func TestNewKBWithTags(t *testing.T) {
 		t.Errorf("NewKB() tag invalide: error = %v, want ErrInvalidTag", err)
 	}
 }
+
+// TestNormalizeTagFilter : le filtre de tags issu d'une URL est nettoyé —
+// minuscules, espaces coupés, doublons et vides retirés. Un tag aux
+// caractères interdits est simplement ignoré (pas d'erreur : le filtre
+// utilisateur ne doit jamais renvoyer 400, juste ne rien filtrer).
+func TestNormalizeTagFilter(t *testing.T) {
+	got := NormalizeTagFilter([]string{"  Incident ", "KPI", "", "incident", "a%b"})
+	want := []string{"incident", "kpi"}
+	if !slices.Equal(got, want) {
+		t.Errorf("NormalizeTagFilter() = %v, want %v", got, want)
+	}
+
+	if got := NormalizeTagFilter(nil); len(got) != 0 {
+		t.Errorf("NormalizeTagFilter(nil) = %v, want vide", got)
+	}
+}

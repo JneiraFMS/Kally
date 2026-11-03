@@ -2,6 +2,7 @@ package pages
 
 import (
 	kb "grz/internal/domain/kb"
+	"net/url"
 	"strings"
 
 	"maragu.dev/gomponents"
@@ -27,8 +28,9 @@ func searchText(k kb.KB) string {
 }
 
 // PageAccueil affiche la page d'accueil : cartes des KB existantes,
-// filtrées par tag si filtreTag est renseigné (chip "Filtré par" affiché).
-func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.Node {
+// filtrées sur les tags fournis (AND à la Logseq : tous les tags requis).
+// Le chip « Filtré par » liste chaque tag avec sa croix de retrait.
+func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponents.Node {
 	var cards []gomponents.Node
 	for _, k := range kbs {
 		cards = append(cards, kbCard(k))
@@ -44,15 +46,9 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 		),
 	}
 
-	// Tag de filtre actif, avec lien pour le retirer
-	if filtreTag != "" {
-		header = append(header,
-			Div(Class("inline-flex items-center gap-2 px-3 py-1 rounded-full bg-g-block text-g-text text-xs"),
-				gomponents.Text("Filtré par"),
-				Span(Class("font-mono text-g-hi"), gomponents.Text(filtreTag)),
-				A(Href("/"), Class("text-g-text hover:text-g-hi"), gomponents.Text("×")),
-			),
-		)
+	// Tags de filtre actifs, chacun retirable individuellement
+	if len(filtreTags) > 0 {
+		header = append(header, filtreChip(filtreTags))
 	}
 
 	// Barre de recherche fuzzy : rendue seulement s'il y a des cartes
@@ -81,12 +77,12 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTag string) gomponents.N
 	}
 
 	switch {
-	case len(kbs) == 0 && filtreTag != "":
-		// Aucune KB pour ce tag : invitation à voir toutes les KB
+	case len(kbs) == 0 && len(filtreTags) > 0:
+		// Aucune KB pour ces tags : invitation à voir toutes les KB
 		content = append(content,
 			Div(Class("max-w-5xl mx-auto px-6 pb-8"),
 				Div(Class("bg-g-widget rounded-xl p-10 text-center space-y-2"),
-					P(Class("text-g-text"), gomponents.Text("Aucune KB avec le tag « "+filtreTag+" ».")),
+					P(Class("text-g-text"), gomponents.Text("Aucune KB avec le(s) tag(s) « "+strings.Join(filtreTags, ", ")+" ».")),
 					A(Href("/"), Class("text-g-text hover:text-g-hi hover:underline"), gomponents.Text("Voir toutes les KB")),
 				),
 			),
@@ -157,4 +153,39 @@ func excerpt(text string, max int) string {
 		return first
 	}
 	return string(r[:max]) + "..."
+}
+
+// filtreChip affiche la ligne « Filtré par » : chaque tag (presque comme
+// dans Logseq, un chip par référence) est retirable individuellement via sa
+// croix — l'URL de retrait pointe vers le filtre sans ce tag.
+func filtreChip(tags []string) gomponents.Node {
+	items := make([]gomponents.Node, 0, len(tags))
+	for _, tag := range tags {
+		items = append(items,
+			A(Href(filtreURLSans(tags, tag)),
+				Class("inline-flex items-center gap-1 font-mono text-g-hi"),
+				gomponents.Text(tag),
+				Span(Class("text-g-text"), gomponents.Text("×")),
+			),
+		)
+	}
+	return Div(Class("flex flex-wrap items-center gap-3 px-3 py-1 rounded-full bg-g-block text-g-text text-xs"),
+		gomponents.Text("Filtré par"),
+		gomponents.Group(items),
+	)
+}
+
+// filtreURLSans construit l'URL du filtre sans le tag retiré : sans tag
+// restant, retour à l'accueil non filtré.
+func filtreURLSans(tags []string, retire string) string {
+	rest := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		if tag != retire {
+			rest = append(rest, tag)
+		}
+	}
+	if len(rest) == 0 {
+		return "/"
+	}
+	return "/?" + url.Values{"tag": rest}.Encode()
 }

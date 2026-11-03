@@ -21,14 +21,22 @@ func NewKBService(repo outbound.KBRepository) *KBService {
 	return &KBService{repo: repo}
 }
 
-// List returns all knowledge bases, optionally filtered by tag.
-func (s *KBService) List(ctx context.Context, tag string) ([]domainkb.KB, error) {
+// List returns all knowledge bases, filtered by the provided tags (AND:
+// every tag must be present). Tag filter values are normalized (case,
+// whitespace, duplicates) and never rejected.
+func (s *KBService) List(ctx context.Context, tags ...string) ([]domainkb.KB, error) {
 	items, err := s.repo.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if tag != "" {
-		items = domainkb.FilterByTag(items, tag)
+	tags = domainkb.NormalizeTagFilter(tags)
+	switch len(tags) {
+	case 1:
+		items = domainkb.FilterByTag(items, tags[0])
+	case 0:
+		// sans filtre : toutes les KB
+	default:
+		items = domainkb.FilterByAllTags(items, tags...)
 	}
 	return items, nil
 }

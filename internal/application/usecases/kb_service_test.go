@@ -130,6 +130,34 @@ func TestKBServiceUpdateAndDelete(t *testing.T) {
 	}
 }
 
+// TestKBServiceListFiltreAnd : plusieurs tags = requête AND (à la Logseq)
+// — une KB doit porter TOUS les tags. Les tags brouillons (casse, espaces,
+// doublons) sont normalisés avant le filtrage : le filtre ne rejette jamais.
+func TestKBServiceListFiltreAnd(t *testing.T) {
+	repo := newFakeRepository()
+	repo.items["KB-1"] = domainKB(t, "KB-1", "incident", "kpi")
+	repo.items["KB-2"] = domainKB(t, "KB-2", "incident")
+	repo.items["KB-3"] = domainKB(t, "KB-3", "kpi")
+	service := NewKBService(repo)
+
+	got, err := service.List(context.Background(), "incident", "kpi")
+	if err != nil {
+		t.Fatalf("List() inattendu: %v", err)
+	}
+	if ids := domainkb.IDs(got); !slices.Equal(ids, []string{"KB-1"}) {
+		t.Errorf("List(incident, kpi) IDs = %v, want [KB-1]", ids)
+	}
+
+	// Normalisation : casse et doublons ne changent pas le résultat
+	got, err = service.List(context.Background(), " Incident ", "KPI", "incident")
+	if err != nil {
+		t.Fatalf("List() normalisée inattendu: %v", err)
+	}
+	if ids := domainkb.IDs(got); !slices.Equal(ids, []string{"KB-1"}) {
+		t.Errorf("List() normalisée IDs = %v, want [KB-1]", ids)
+	}
+}
+
 func domainKB(t *testing.T, id string, tags ...string) domainkb.KB {
 	t.Helper()
 	item, err := domainkb.NewKB(id, "e", "n", "r", tags...)

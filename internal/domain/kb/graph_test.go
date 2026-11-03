@@ -23,6 +23,29 @@ func sampleGraph() []KB {
 	}
 }
 
+// TestFilterByAllTags : avec plusieurs tags, une KB n'est conservée que si
+// elle porte TOUS les tags (requête AND, à la Logseq) ; sans tag, tout est
+// retourné.
+func TestFilterByAllTags(t *testing.T) {
+	kbs := sampleGraph()
+
+	got := IDs(FilterByAllTags(kbs, "calcul", "kpi"))
+	want := []string{"KB-0001"}
+	if !slices.Equal(got, want) {
+		t.Errorf("FilterByAllTags(calcul, kpi) = %v, want %v", got, want)
+	}
+
+	// Un seul tag : équivalent à FilterByTag
+	if got, want := IDs(FilterByAllTags(kbs, "calcul")), []string{"KB-0001", "KB-0002", "KB-0005"}; !slices.Equal(got, want) {
+		t.Errorf("FilterByAllTags(calcul) = %v, want %v", got, want)
+	}
+
+	// Sans tag : aucun filtrage
+	if got := IDs(FilterByAllTags(kbs)); len(got) != len(kbs) {
+		t.Errorf("FilterByAllTags() sans tag = %v, want toutes (%d)", got, len(kbs))
+	}
+}
+
 func TestRelatedIsSymmetric(t *testing.T) {
 	kbs := sampleGraph()
 	byID := func(kbs []KB, id string) KB {

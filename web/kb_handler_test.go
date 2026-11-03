@@ -646,6 +646,37 @@ func TestKBHandlerValidationFocusUsesThemeClass(t *testing.T) {
 	}
 }
 
+// TestKBHandlerHomeFiltrePlusieursTags : ?tag=a&tag=b filtre en AND (à la
+// Logseq) — seules les KB portant TOUS les tags sont listées.
+func TestKBHandlerHomeFiltrePlusieursTags(t *testing.T) {
+	repo := newFakeRepo()
+	if err := seedKB(t, repo, "KB-0001", "incident", "kpi"); err != nil {
+		t.Fatal(err)
+	}
+	if err := seedKB(t, repo, "KB-0002", "incident"); err != nil {
+		t.Fatal(err)
+	}
+	if err := seedKB(t, repo, "KB-0003", "kpi"); err != nil {
+		t.Fatal(err)
+	}
+	h := newTestHandler(repo)
+
+	req := httptest.NewRequest("GET", "/?tag=incident&tag=kpi", nil)
+	w := httptest.NewRecorder()
+	h.Home(w, req)
+
+	if w.Code != 200 {
+		t.Errorf("Home(multi tags) status = %d, want 200", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "KB-0001") {
+		t.Errorf("Home(multi tags) n'affiche pas KB-0001")
+	}
+	if strings.Contains(body, "KB-0002") || strings.Contains(body, "KB-0003") {
+		t.Errorf("Home(multi tags) affiche une KB hors filtre AND: %s", body)
+	}
+}
+
 func renderString(t *testing.T, node gomponents.Node) string {
 	t.Helper()
 	var buf strings.Builder

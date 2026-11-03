@@ -28,39 +28,40 @@ func NewKBHandler(app inbound.KBApplication) *KBHandler {
 	return &KBHandler{app: app}
 }
 
-// Home displays the knowledge-base cards, optionally filtered by tag.
+// Home displays the knowledge-base cards, filtered by the ?tag= values
+// (AND when several tags are provided, like a Logseq query).
 func (h *KBHandler) Home(w http.ResponseWriter, r *http.Request) {
-	tag := r.URL.Query().Get("tag")
-	items, err := h.app.List(r.Context(), tag)
+	tags := domainkb.NormalizeTagFilter(r.URL.Query()["tag"])
+	items, err := h.app.List(r.Context(), tags...)
 	if err != nil {
 		writeInternalError(w, err)
 		return
 	}
-	renderNode(w, pages.PageAccueil(r.URL.Path, items, tag))
+	renderNode(w, pages.PageAccueil(r.URL.Path, items, tags...))
 }
 
-// List redirects old list URLs to the home page.
+// List redirects old list URLs to the home page, keeping the multi-tag filter.
 func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
 	target := "/"
-	if tag := r.URL.Query().Get("tag"); tag != "" {
-		target = "/?tag=" + url.QueryEscape(tag)
+	if tags := r.URL.Query()["tag"]; len(tags) > 0 {
+		target = "/?" + url.Values{"tag": tags}.Encode()
 	}
 	http.Redirect(w, r, target, http.StatusSeeOther)
-}
-
-// ShowGraph displays the global knowledge-base graph.
-func (h *KBHandler) ShowGraph(w http.ResponseWriter, r *http.Request) {
-	items, err := h.app.List(r.Context(), "")
-	if err != nil {
-		writeInternalError(w, err)
-		return
-	}
-	renderNode(w, pages.PageKBGraph(r.URL.Path, items))
 }
 
 // ShowNewForm displays the create form.
 func (h *KBHandler) ShowNewForm(w http.ResponseWriter, r *http.Request) {
 	renderNode(w, pages.PageKBCreate(r.URL.Path))
+}
+
+// ShowGraph displays the global knowledge-base graph.
+func (h *KBHandler) ShowGraph(w http.ResponseWriter, r *http.Request) {
+	items, err := h.app.List(r.Context())
+	if err != nil {
+		writeInternalError(w, err)
+		return
+	}
+	renderNode(w, pages.PageKBGraph(r.URL.Path, items))
 }
 
 // Create validates and creates a knowledge base submitted by the form.
@@ -110,18 +111,24 @@ func (h *KBHandler) UpdateForm(w http.ResponseWriter, r *http.Request) {
 	redirectToDetail(w, r, item.ID)
 }
 
-// renderFormError répond à une erreur de formulaire.
+// respondFormError répond à une erreur de formulaire (formes KB et journal).
 //
 // htmx n'échange pas le contenu d'une réponse 4xx/5xx : pour un échange htmx
 // on renvoie donc 200 + le message seul (la zone #reponse-serveur est
 // remplacée). Pour le flux natif (sans JavaScript), on renvoie la page
 // complète pré-remplie avec le statut d'erreur approprié.
-func (h *KBHandler) renderFormError(w http.ResponseWriter, r *http.Request, status int, message gomponents.Node, page func(pages.FormulaireKB) gomponents.Node) {
+func respondFormError(w http.ResponseWriter, r *http.Request, status int, message gomponents.Node, page gomponents.Node) {
 	if r.Header.Get("HX-Request") == "true" {
 		writeMessage(w, http.StatusOK, message)
 		return
 	}
-	writeMessage(w, status, page(pages.FormulaireKB{Valeurs: formValues(r), Message: message}))
+	writeMessage(w, status, page)
+}
+
+// renderFormError répond à une erreur de formulaire KB
+// (page complète pré-remplie en natif, message seul en htmx).
+func (h *KBHandler) renderFormError(w http.ResponseWriter, r *http.Request, status int, message gomponents.Node, page func(pages.FormulaireKB) gomponents.Node) {
+	respondFormError(w, r, status, message, page(pages.FormulaireKB{Valeurs: formValues(r), Message: message}))
 }
 
 // formValues collecte les valeurs saisies, indexées par name, pour
