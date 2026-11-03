@@ -15,7 +15,7 @@ func tagBadges(tags []string) gomponents.Node {
 	for _, tag := range tags {
 		badges = append(badges,
 			A(Href("/?tag="+url.QueryEscape(tag)),
-				Class("inline-block px-2.5 py-0.5 rounded-full bg-g-block text-g-base text-xs hover:text-g-hi hover:bg-g-hover transition-colors"),
+				Class("inline-block px-2.5 py-0.5 rounded-full bg-g-block text-g-text text-xs hover:text-g-hi hover:bg-g-hover transition-colors"),
 				gomponents.Text(tag),
 			),
 		)

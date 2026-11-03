@@ -48,7 +48,7 @@ func deleteButton(id string) gomponents.Node {
 		Class("mx-2 mb-1"),
 		Input(Type("hidden"), Name("id"), Value(id)),
 		Button(Type("submit"),
-			Class("px-3.5 py-1.5 rounded-lg bg-g-block text-g-negative hover:bg-g-hover hover:brightness-125 text-xs transition-colors"),
+			Class("px-3.5 py-1.5 rounded-lg bg-g-block text-g-negative-text hover:bg-g-hover hover:brightness-125 text-xs transition-colors"),
 			gomponents.Text("Supprimer"),
 		),
 	)
@@ -57,7 +57,7 @@ func deleteButton(id string) gomponents.Node {
 // secondaryAction est un bouton d'action discret (bloc sans bordure).
 func secondaryAction(href, label string) gomponents.Node {
 	return A(Href(href),
-		Class("mx-2 mb-1 px-3.5 py-1.5 rounded-lg bg-g-block text-g-base hover:text-g-hi hover:bg-g-hover text-xs transition-colors"),
+		Class("mx-2 mb-1 px-3.5 py-1.5 rounded-lg bg-g-block text-g-text hover:text-g-hi hover:bg-g-hover text-xs transition-colors"),
 		gomponents.Text(label),
 	)
 }
@@ -85,9 +85,9 @@ func Note(titre string, tags []string, sections ...gomponents.Node) gomponents.N
 // gomponents.Text. Vide → « — vide — ».
 func monoBody(texte string) gomponents.Node {
 	if strings.TrimSpace(texte) == "" {
-		return I(Class("text-g-base"), gomponents.Text("— vide —"))
+		return I(Class("text-g-text"), gomponents.Text("— vide —"))
 	}
-	return Pre(Class("font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-g-text"),
+	return Pre(Class("font-mono text-xs leading-relaxed whitespace-pre-wrap break-words text-g-hi bg-g-code border border-g-border rounded-lg p-3"),
 		gomponents.Text(texte))
 }
 
@@ -95,7 +95,7 @@ func monoBody(texte string) gomponents.Node {
 // « md » pour les styles). Vide → « — vide — ».
 func mdBody(texte string) gomponents.Node {
 	if strings.TrimSpace(texte) == "" {
-		return I(Class("text-g-base"), gomponents.Text("— vide —"))
+		return I(Class("text-g-text"), gomponents.Text("— vide —"))
 	}
 	return mdToNode(texte)
 }
@@ -113,7 +113,7 @@ func noteSection(titre string, body gomponents.Node) gomponents.Node {
 func relatedSection(related []kb.KB) gomponents.Node {
 	if len(related) == 0 {
 		return noteSection("KB liées",
-			I(Class("text-g-base"), gomponents.Text("Aucune KB liée par tag")),
+			I(Class("text-g-text"), gomponents.Text("Aucune KB liée par tag")),
 		)
 	}
 
@@ -122,10 +122,10 @@ func relatedSection(related []kb.KB) gomponents.Node {
 		choices = append(choices,
 			Div(Class("py-1.5"),
 				A(Href("/kb/detail?id="+k.ID),
-					Class("font-mono text-g-accent font-semibold hover:underline"),
+					Class("font-mono text-g-accent-text font-semibold hover:underline"),
 					gomponents.Text(k.ID),
 				),
-				Div(Class("text-g-base text-xs"), gomponents.Text(firstLine(k.Erreur))),
+				Div(Class("text-g-text text-xs"), gomponents.Text(firstLine(k.Erreur))),
 			),
 		)
 	}

@@ -95,3 +95,26 @@ func TestLayoutThemeToggle(t *testing.T) {
 		t.Errorf("bouton présent mais script de bascule manquant")
 	}
 }
+
+// TestThemeToggleHitArea : la règle #theme-toggle ne remet pas le padding à
+// zéro (elle annulait la classe py-3 du bouton) ; la cible de clic doit
+// rester au moins aussi haute que le reste de la navbar.
+func TestThemeToggleHitArea(t *testing.T) {
+	html := renderedPage(t, layout("T", "/", nil))
+
+	start := strings.Index(html, "#theme-toggle {")
+	if start < 0 {
+		t.Fatal("règle #theme-toggle absente")
+	}
+	end := strings.Index(html[start:], "}")
+	if end < 0 {
+		t.Fatal("règle #theme-toggle non fermée")
+	}
+	rule := html[start : start+end]
+	if strings.Contains(rule, "padding: 0") {
+		t.Errorf("#theme-toggle remet le padding à zéro (zone cliquable écrasée):\n%s", rule)
+	}
+	if !strings.Contains(html, `class="px-2 py-3"`) {
+		t.Errorf("bouton de thème sans padding utilitaire (cible de clic trop petite)")
+	}
+}

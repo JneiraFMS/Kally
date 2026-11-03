@@ -840,5 +840,47 @@ There is no Tailwind CDN or Node toolchain.
 - Markdown code highlighting: goldmark-highlighting + Chroma in **classes
   mode** (`chromahtml.WithClasses(true)`, prefix `chroma-`) — never inline
   colors. Token-family colors live in the inline stylesheet (`.chroma-*`)
-  using `var(--g-*)`; extended families (kd/kt/fm/mb/…): update the rules
-  in `layout.go` when a new lexer family shows up unstyled.
+  and MUST use the `g-syn-*` tokens (`g-syn-keyword`, `g-syn-string`,
+  `g-syn-comment`, `g-syn-error`) or `g-hi` — never `g-cyan`, `g-positive`,
+  `g-text` or `g-negative-text`, which do not reach 4.5:1 on `g-code`.
+  Extended families (kd/kt/fm/mb/…): update the rules in `layout.go` when a
+  new lexer family shows up unstyled.
+
+### Text Colors & Contrast (WCAG AA)
+
+- Every text/background pair used by the UI MUST reach **4.5:1**
+  (`html/pages/contrast_test.go`, `TestPaletteContrast`, both themes).
+- Use `g-text` for body copy, excerpts, labels, placeholders, tags,
+  secondary actions and empty-state mentions. `g-muted` / `g-subdue` are
+  decorative only and MUST NOT be used as a text color.
+- `g-accent` and `g-negative` are decorative tokens (SVG, borders, halos,
+  fills). Any **text** using those hues MUST use `g-accent-text` /
+  `g-negative-text`, which are tuned per theme for contrast.
+- `g-ink` is reserved for text placed on `g-accent` (primary buttons).
+- Read-only form fields reuse `g-widget` + `g-text` + `cursor-not-allowed`;
+  editable fields keep `g-block`.
+- **Nested surfaces use their own token.** `g-widget` is the card surface;
+  never reuse it as the background of an element *inside* a card (that made
+  `<code>`/`<pre>` invisible). Code surfaces use `g-code` plus a
+  `1px solid var(--g-border)` outline; code text is `g-hi` (`g-text` falls
+  under 4.5:1 on `g-code`). `html/pages/contrast_test.go`
+  (`TestCodeSurfaceDistinctFromWidget`) guards against the regression.
+
+### Form Errors: htmx Swap vs Native Fallback
+
+htmx does **not** swap the target of a `4xx`/`5xx` response. Therefore:
+
+- Request carries `HX-Request: true` → respond **200 + the message node
+  only** so `#reponse-serveur` is replaced and the error is visible.
+- Native POST (no JavaScript) → respond the **full pre-filled form page**
+  with the validation message and the proper status (`400` invalid,
+  `409` duplicate). Values already typed are preserved through
+  `pages.FormulaireKB{Valeurs, Message}` and `PageKBCreateWith` /
+  `PageKBEditWith`.
+- The faulty field is flagged with the `.field-error` class (outline
+  `var(--g-negative-text)`), removed on the first `input` event. Never
+  inject an inline `#dc322f` outline: colors must follow the active theme.
+- Labels are bound to controls (`for="field-<nom>"` / matching `id`), and a
+  control carries exactly **one** `class` attribute (append modifiers to
+  the class string, never emit a second `Class(...)`).
+

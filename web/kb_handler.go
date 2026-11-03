@@ -72,9 +72,15 @@ func (h *KBHandler) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, application.ErrAlreadyExists):
-			writeMessage(w, http.StatusConflict, duplicateMessage(strings.TrimSpace(r.FormValue("id"))))
+			h.renderFormError(w, r, http.StatusConflict, duplicateMessage(strings.TrimSpace(r.FormValue("id"))),
+				func(form pages.FormulaireKB) gomponents.Node {
+					return pages.PageKBCreateWith(r.URL.Path, form)
+				})
 		case errors.Is(err, domainkb.ErrInvalidID), errors.Is(err, domainkb.ErrInvalidTag):
-			writeMessage(w, http.StatusBadRequest, validationMessage(err))
+			h.renderFormError(w, r, http.StatusBadRequest, validationMessage(err),
+				func(form pages.FormulaireKB) gomponents.Node {
+					return pages.PageKBCreateWith(r.URL.Path, form)
+				})
 		default:
 			writeInternalError(w, err)
 		}
@@ -91,13 +97,41 @@ func (h *KBHandler) UpdateForm(w http.ResponseWriter, r *http.Request) {
 	item, err := h.app.Update(r.Context(), inputFromRequest(r))
 	if err != nil {
 		if errors.Is(err, domainkb.ErrInvalidID) || errors.Is(err, domainkb.ErrInvalidTag) {
-			writeMessage(w, http.StatusBadRequest, validationMessage(err))
+			id := r.FormValue("id")
+			h.renderFormError(w, r, http.StatusBadRequest, validationMessage(err),
+				func(form pages.FormulaireKB) gomponents.Node {
+					return pages.PageKBEditWith(r.URL.Path, id, form)
+				})
 		} else {
 			writeInternalError(w, err)
 		}
 		return
 	}
 	redirectToDetail(w, r, item.ID)
+}
+
+// renderFormError répond à une erreur de formulaire.
+//
+// htmx n'échange pas le contenu d'une réponse 4xx/5xx : pour un échange htmx
+// on renvoie donc 200 + le message seul (la zone #reponse-serveur est
+// remplacée). Pour le flux natif (sans JavaScript), on renvoie la page
+// complète pré-remplie avec le statut d'erreur approprié.
+func (h *KBHandler) renderFormError(w http.ResponseWriter, r *http.Request, status int, message gomponents.Node, page func(pages.FormulaireKB) gomponents.Node) {
+	if r.Header.Get("HX-Request") == "true" {
+		writeMessage(w, http.StatusOK, message)
+		return
+	}
+	writeMessage(w, status, page(pages.FormulaireKB{Valeurs: formValues(r), Message: message}))
+}
+
+// formValues collecte les valeurs saisies, indexées par name, pour
+// ré-afficher le formulaire sans perdre la saisie.
+func formValues(r *http.Request) map[string]string {
+	valeurs := make(map[string]string, 5)
+	for _, nom := range []string{"id", "erreur", "notes", "resolution", "tags"} {
+		valeurs[nom] = r.FormValue(nom)
+	}
+	return valeurs
 }
 
 // ShowEditForm displays the pre-filled edit form.
@@ -131,7 +165,7 @@ func (h *KBHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // errorMessage builds a neutral HTML message; gomponents escapes its text.
 func errorMessage(text string) gomponents.Node {
-	return Span(Class("text-g-negative font-semibold"), gomponents.Text(text))
+	return Span(Class("text-g-negative-text font-semibold"), gomponents.Text(text))
 }
 
 // validationMessage identifies the field that failed domain validation.
@@ -150,15 +184,17 @@ func validationMessage(err error) gomponents.Node {
 
 func focusFieldScript(fieldID string) string {
 	return `(function(){var f=document.getElementById("field-` + fieldID + `");` +
-		`if(f){f.style.outline="2px solid #dc322f";f.style.outlineOffset="2px";f.focus();}})();`
+		`if(!f){return;}f.classList.add("field-error");` +
+		`f.addEventListener("input",function(){f.classList.remove("field-error");},{once:true});` +
+		`f.focus();})();`
 }
 
 // duplicateMessage warns that a knowledge base already exists and links to edit.
 func duplicateMessage(id string) gomponents.Node {
-	return Span(Class("text-g-negative font-semibold"),
+	return Span(Class("text-g-negative-text font-semibold"),
 		gomponents.Text("La KB "+id+" existe déjà. "),
 		A(Href("/kb/edit?id="+url.QueryEscape(id)),
-			Class("text-g-accent underline"),
+			Class("text-g-accent-text underline"),
 			gomponents.Text("Modifier cette KB ?"),
 		),
 	)

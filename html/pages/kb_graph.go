@@ -31,7 +31,7 @@ const graphCSS = `.kg-edge {
 }
 .kg-dot { fill: var(--g-cyan); }
 .kg-label {
-	fill: var(--g-base);
+	fill: var(--g-text);
 	paint-order: stroke;
 	stroke: var(--g-bg);
 	stroke-width: 6;
@@ -111,10 +111,10 @@ for (var i = 0; i < nodes.length; i++) {
 // partagé (relation bidirectionnelle), sans librairie externe (SVG inline).
 func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 	content := []gomponents.Node{
-		Div(Class("max-w-5xl mx-auto px-6 py-6 space-y-4 flex items-center justify-between"),
+		Div(Class("max-w-5xl mx-auto px-6 py-6 flex items-center justify-between"),
 			H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text("Graphe des KB")),
 			A(Href("/"),
-				Class("px-3.5 py-1.5 rounded-lg bg-g-block text-g-base hover:text-g-hi hover:bg-g-hover text-xs transition-colors"),
+				Class("px-3.5 py-1.5 rounded-lg bg-g-block text-g-text hover:text-g-hi hover:bg-g-hover text-xs transition-colors"),
 				gomponents.Text("Retour"),
 			),
 		),
@@ -123,7 +123,7 @@ func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 	if len(kbs) == 0 {
 		content = append(content,
 			Div(Class("max-w-5xl mx-auto px-6 pb-8"),
-				P(Class("text-g-base"), gomponents.Text("Aucune KB : le graphe est vide.")),
+				P(Class("text-g-text"), gomponents.Text("Aucune KB : le graphe est vide.")),
 			),
 		)
 		return layout("Graphe des KB", currentPath, content)
@@ -157,7 +157,7 @@ func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 				),
 			),
 			// Légende : une phrase, ce que montre le graphe
-			P(Class("text-xs text-g-base"),
+			P(Class("text-xs text-g-text"),
 				gomponents.Text("Un point par KB, une ligne par tag partagé. Survolez un point pour suivre ses liens, cliquez-le pour ouvrir la fiche."),
 			),
 			// Surlignage des arêtes du nœud survolé (dégradation douce sans JS)

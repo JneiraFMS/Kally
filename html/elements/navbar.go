@@ -58,7 +58,7 @@ func NavbarCustom(elementList []NavbarElements, currentPath string) gomponents.N
 
 	for _, item := range elementList {
 		isActive := item.Href == currentPath
-		linkClass := "relative py-3 text-g-base hover:text-g-hi transition-colors"
+		linkClass := "relative py-3 text-g-text hover:text-g-hi transition-colors"
 		if isActive {
 			// Soulignement fin jaune sous l'item actif
 			linkClass = "relative py-3 text-g-hi font-medium after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-g-accent after:content-['']"
@@ -94,7 +94,7 @@ func NavbarCustom(elementList []NavbarElements, currentPath string) gomponents.N
 					Type("button"),
 					ID("theme-toggle"),
 					gomponents.Attr("aria-label", "Changer de thème"),
-					Class("py-3"),
+					Class("px-2 py-3"),
 					gomponents.Text("◐"),
 				),
 			),

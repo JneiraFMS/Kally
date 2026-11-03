@@ -211,10 +211,150 @@ func TestMarkdownCodeCopyThemeStyles(t *testing.T) {
 		".md-code-copy",
 		"padding-top: 2.5rem",
 		"background: var(--g-block)",
-		"color: var(--g-base)",
+		"color: var(--g-text)",
 	} {
 		if !strings.Contains(html, want) {
 			t.Errorf("styles du bouton copier sans %q", want)
+		}
+	}
+}
+
+// TestMarkdownListsKeepMarkers : le reset preflight de Tailwind supprime les
+// puces (list-style: none). Les listes du markdown doivent les retrouver,
+// sinon une énumération devient une suite de paragraphes.
+func TestMarkdownListsKeepMarkers(t *testing.T) {
+	html := renderedPage(t, layout("T", "/", nil))
+
+	for _, want := range []string{
+		".md ul { list-style: disc;",
+		".md ol { list-style: decimal;",
+		"padding-left: 1.25rem",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("feuille inline sans %q (listes markdown sans puces)", want)
+		}
+	}
+}
+
+// TestMarkdownHeadingsHierarchy : les titres écrits par l'auteur dans le
+// markdown sont plus grands que les titres de section générés par
+// l'application (0,875 rem) et chaque niveau se distingue du suivant.
+func TestMarkdownHeadingsHierarchy(t *testing.T) {
+	html := renderedPage(t, layout("T", "/", nil))
+
+	for _, want := range []string{
+		".md h1 { font-size: 1.15rem;",
+		".md h2 { font-size: 1.05rem;",
+		".md h3 { font-size: 0.95rem;",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("hiérarchie des titres markdown incomplète : %q manquant", want)
+		}
+	}
+	if strings.Contains(html, ".md h1, .md h2, .md h3 {\n\tfont-size") {
+		t.Errorf("les trois niveaux de titre markdown partagent encore la même taille")
+	}
+}
+
+// cssRuleBody retourne le corps de la première règle dont le sélecteur
+// commence par selector (la feuille inline est embarquée dans la page).
+func cssRuleBody(t *testing.T, html, selector string) string {
+	t.Helper()
+	start := strings.Index(html, selector)
+	if start < 0 {
+		t.Fatalf("règle %q absente de la feuille inline", selector)
+	}
+	open := strings.Index(html[start:], "{")
+	if open < 0 {
+		t.Fatalf("règle %q sans accolade ouvrante", selector)
+	}
+	bodyStart := start + open + 1
+	end := strings.Index(html[bodyStart:], "}")
+	if end < 0 {
+		t.Fatalf("règle %q non fermée", selector)
+	}
+	return html[start : bodyStart+end+1]
+}
+
+// TestMarkdownCodeSurface : les balises code (inline et blocs fencés) ont une
+// surface propre, distincte de la carte qui les contient. Elles réutilisaient
+// g-widget — exactement le fond de la carte — le code était donc invisible.
+// Le liseré n'est porté que par les blocs : le code inline reste épuré.
+func TestMarkdownCodeSurface(t *testing.T) {
+	html := renderedPage(t, layout("T", "/", nil))
+
+	for _, selector := range []string{".md code", ".md pre"} {
+		rule := cssRuleBody(t, html, selector)
+		if !strings.Contains(rule, "background: var(--g-code)") {
+			t.Errorf("%s sans fond var(--g-code) :\n%s", selector, rule)
+		}
+		if strings.Contains(rule, "var(--g-widget)") {
+			t.Errorf("%s réutilise la surface de la carte :\n%s", selector, rule)
+		}
+	}
+
+	code := cssRuleBody(t, html, ".md code")
+	if strings.Contains(code, "border:") {
+		t.Errorf("le code inline ne doit pas porter de liseré :\n%s", code)
+	}
+
+	pre := cssRuleBody(t, html, ".md pre")
+	if !strings.Contains(pre, "border: 1px solid var(--g-border)") {
+		t.Errorf(".md pre sans liseré (délimitation en thème clair) :\n%s", pre)
+	}
+	if !strings.Contains(pre, "color: var(--g-hi)") {
+		t.Errorf("le texte des blocs de code doit être g-hi (g-text échoue sur g-code) :\n%s", pre)
+	}
+	// Page détail : pas de barre de défilement horizontale, les longues
+	// lignes de code et de trace se replient à la place.
+	for _, want := range []string{"white-space: pre-wrap;", "overflow-wrap: anywhere"} {
+		if !strings.Contains(pre, want) {
+			t.Errorf(".md pre sans %q (barre de défilement horizontale) :\n%s", want, pre)
+		}
+	}
+	if strings.Contains(pre, "overflow-x") {
+		t.Errorf(".md pre déclare encore un défilement horizontal :\n%s", pre)
+	}
+	if !strings.Contains(html, ".md { overflow-wrap: anywhere; }") {
+		t.Errorf("conteneur .md sans repli des mots très longs (URL) : barre horizontale possible")
+	}
+	if !strings.Contains(html, ".md pre code { background: none;") {
+		t.Errorf("le code dans un bloc pré garde un double fond")
+	}
+}
+
+// TestMarkdownSyntaxTokens : la coloration syntaxique passe par les tokens
+// g-syn-* (calibrés pour 4.5:1 sur g-code), plus par les accents décoratifs
+// g-cyan / g-positive / g-text.
+func TestMarkdownSyntaxTokens(t *testing.T) {
+	html := renderedPage(t, layout("T", "/", nil))
+
+	rules := []struct {
+		selector string
+		want     string
+	}{
+		{".chroma-k, .chroma-kd", "var(--g-syn-keyword)"},
+		{".chroma-s, .chroma-s1", "var(--g-syn-string)"},
+		{".chroma-c, .chroma-c1", "var(--g-syn-comment)"},
+		{".chroma-err, .chroma-w", "var(--g-syn-error)"},
+		{".chroma-nf, .chroma-fm", "var(--g-hi)"},
+	}
+	for _, rule := range rules {
+		body := cssRuleBody(t, html, rule.selector)
+		if !strings.Contains(body, "color: "+rule.want) {
+			t.Errorf("%s sans color: %s :\n%s", rule.selector, rule.want, body)
+		}
+	}
+
+	for _, selector := range []string{
+		".chroma-k, ", ".chroma-s, ", ".chroma-c, ",
+		".chroma-nf, ", ".chroma-nc, ", ".chroma-nv, ",
+	} {
+		body := cssRuleBody(t, html, selector)
+		for _, forbidden := range []string{"var(--g-cyan)", "var(--g-positive)", "var(--g-text)", "var(--g-negative-text)"} {
+			if strings.Contains(body, forbidden) {
+				t.Errorf("%s utilise encore %s (contraste insuffisant sur g-code) :\n%s", selector, forbidden, body)
+			}
 		}
 	}
 }
