@@ -217,6 +217,38 @@ func TestKBHandlerDeleteRemovesKB(t *testing.T) {
 	}
 }
 
+// TestKBHandlerDeleteRedirectsHTMX : sous htmx, la suppression doit répondre
+// 200 + HX-Redirect. htmx suit une 303 et change la cible dans le DOM : le
+// navigateur resterait sur l'URL de la KB supprimée au lieu de naviguer.
+func TestKBHandlerDeleteRedirectsHTMX(t *testing.T) {
+	repo := seedRepo(t, "KB-0001", "KB-0002")
+	h := newTestHandler(repo)
+
+	form := url.Values{"id": {"KB-0001"}}
+	req := httptest.NewRequest("POST", "/kb/delete", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("HX-Request", "true")
+	w := httptest.NewRecorder()
+
+	h.Delete(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("Delete() status = %d, want 200 (htmx suit la 303 et reste sur la KB supprimée)", w.Code)
+	}
+	if got := w.Header().Get("HX-Redirect"); got != "/" {
+		t.Errorf("Delete() HX-Redirect = %q, want /", got)
+	}
+	if loc := w.Header().Get("Location"); loc != "" {
+		t.Errorf("Delete() Location = %q sous htmx, want vide", loc)
+	}
+	if _, ok := repo.saved["KB-0001"]; ok {
+		t.Errorf("Delete() htmx n'a pas supprimé la KB")
+	}
+	if _, ok := repo.saved["KB-0002"]; !ok {
+		t.Errorf("Delete() htmx a supprimé une autre KB")
+	}
+}
+
 // TestKBHandlerDeleteMissingKB : supprimer une KB absente répond 404.
 func TestKBHandlerDeleteMissingKB(t *testing.T) {
 	h := newTestHandler(newFakeRepo())

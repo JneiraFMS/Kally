@@ -2,6 +2,7 @@ package pages
 
 import (
 	kb "grz/internal/domain/kb"
+	"net/url"
 	"strings"
 
 	"maragu.dev/gomponents"
@@ -62,6 +63,34 @@ func secondaryAction(href, label string) gomponents.Node {
 	)
 }
 
+// serviceNowURL construit l'URL de l'article ServiceNow d'une KB.
+func serviceNowURL(id string) string {
+	return "https://airbus.service-now.com/kb_view.do?sysparm_article=" + url.QueryEscape(id)
+}
+
+// serviceNowLink rend un lien vers l'article ServiceNow d'une KB : ouverture
+// dans un nouvel onglet, dont le libellé et le style sont fournis par
+// l'appelant (titre de note vs entrée des KB liées).
+func serviceNowLink(id, label, class string) gomponents.Node {
+	return A(
+		Href(serviceNowURL(id)),
+		Target("_blank"),
+		Rel("noopener noreferrer"),
+		Class(class),
+		gomponents.Text(label),
+	)
+}
+
+// noteTitle : le titre de note est un H1 (sémantique). Pour un ID de KB,
+// le texte est un lien vers l'article ServiceNow, héritant la couleur du h1.
+func noteTitle(titre string) gomponents.Node {
+	if strings.HasPrefix(titre, "KB") {
+		return H1(Class("font-mono text-xl font-semibold text-g-hi"),
+			serviceNowLink(titre, titre, "hover:underline"))
+	}
+	return H1(Class("font-mono text-xl font-semibold text-g-hi"), gomponents.Text(titre))
+}
+
 // Note est le conteneur d'une note : titre mono + tags en pills, puis les sections.
 func Note(titre string, tags []string, sections ...gomponents.Node) gomponents.Node {
 	var sousTitre []gomponents.Node
@@ -72,7 +101,7 @@ func Note(titre string, tags []string, sections ...gomponents.Node) gomponents.N
 	return Div(Class("max-w-5xl mx-auto px-6 pb-10"),
 		Div(Class("max-w-3xl bg-g-widget rounded-xl px-8 py-8 space-y-6"),
 			Div(Class("space-y-2"),
-				H1(Class("font-mono text-xl font-semibold text-g-hi"), gomponents.Text(titre)),
+				noteTitle(titre),
 				gomponents.Group(sousTitre),
 			),
 			gomponents.Group(sections),
@@ -121,9 +150,15 @@ func relatedSection(related []kb.KB) gomponents.Node {
 	for _, k := range related {
 		choices = append(choices,
 			Div(Class("py-1.5"),
-				A(Href("/kb/detail?id="+k.ID),
-					Class("font-mono text-g-accent-text font-semibold hover:underline"),
-					gomponents.Text(k.ID),
+				Div(Class("flex items-baseline gap-2"),
+					// Navigation interne bidirectionnelle, conservée.
+					A(Href("/kb/detail?id="+k.ID),
+						Class("font-mono text-g-accent-text font-semibold hover:underline"),
+						gomponents.Text(k.ID),
+					),
+					// Article ServiceNow de la KB liée, en lien secondaire.
+					serviceNowLink(k.ID, "ServiceNow ↗",
+						"text-xs text-g-text hover:text-g-hi hover:underline"),
 				),
 				Div(Class("text-g-text text-xs"), gomponents.Text(firstLine(k.Erreur))),
 			),
