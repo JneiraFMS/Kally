@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"grz/html/pages"
 	"grz/internal/application"
@@ -28,39 +29,59 @@ func NewKBHandler(app inbound.KBApplication) *KBHandler {
 	return &KBHandler{app: app}
 }
 
-// Home displays the knowledge-base cards, optionally filtered by tag.
+// Home displays the knowledge-base cards, filtered by the ?tag= values
+// (AND when several tags are provided, like a Logseq query).
 func (h *KBHandler) Home(w http.ResponseWriter, r *http.Request) {
-	tag := r.URL.Query().Get("tag")
-	items, err := h.app.List(r.Context(), tag)
+	tags := domainkb.NormalizeTagFilter(r.URL.Query()["tag"])
+	items, err := h.app.List(r.Context(), tags...)
 	if err != nil {
 		writeInternalError(w, err)
 		return
 	}
-	renderNode(w, pages.PageAccueil(r.URL.Path, items, tag))
+	renderNode(w, pages.PageAccueil(r.URL.Path, items, tags...))
 }
 
-// List redirects old list URLs to the home page.
+// List redirects old list URLs to the home page, keeping the multi-tag filter.
 func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
 	target := "/"
-	if tag := r.URL.Query().Get("tag"); tag != "" {
-		target = "/?tag=" + url.QueryEscape(tag)
+	if tags := r.URL.Query()["tag"]; len(tags) > 0 {
+		target = "/?" + url.Values{"tag": tags}.Encode()
 	}
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
+// ShowJournal displays the daily journal (Logseq-inspired): the note of the
+// day is creatable in one click, previous entries are listed newest first.
+func (h *KBHandler) ShowJournal(w http.ResponseWriter, r *http.Request) {
+	page, err := h.app.Journal(r.Context(), time.Now().Format("2006-01-02"))
+	if err != nil {
+		writeInternalError(w, err)
+		return
+	}
+	renderNode(w, pages.PageJournal(r.URL.Path, page))
+}
+
+// ShowNewForm displays the create form, pre-filled from the query
+// parameters (the journal page links to /kb/new?id=journal-<date>&tags=journal).
+func (h *KBHandler) ShowNewForm(w http.ResponseWriter, r *http.Request) {
+	valeurs := map[string]string{}
+	if id := r.URL.Query().Get("id"); id != "" {
+		valeurs["id"] = id
+	}
+	if tags := r.URL.Query().Get("tags"); tags != "" {
+		valeurs["tags"] = tags
+	}
+	renderNode(w, pages.PageKBCreateWith(r.URL.Path, pages.FormulaireKB{Valeurs: valeurs}))
+}
+
 // ShowGraph displays the global knowledge-base graph.
 func (h *KBHandler) ShowGraph(w http.ResponseWriter, r *http.Request) {
-	items, err := h.app.List(r.Context(), "")
+	items, err := h.app.List(r.Context())
 	if err != nil {
 		writeInternalError(w, err)
 		return
 	}
 	renderNode(w, pages.PageKBGraph(r.URL.Path, items))
-}
-
-// ShowNewForm displays the create form.
-func (h *KBHandler) ShowNewForm(w http.ResponseWriter, r *http.Request) {
-	renderNode(w, pages.PageKBCreate(r.URL.Path))
 }
 
 // Create validates and creates a knowledge base submitted by the form.

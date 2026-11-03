@@ -27,6 +27,9 @@ func main() {
 	// Page d'accueil : cartes des KB existantes
 	mux.HandleFunc("GET /{$}", kbHandler.Home)
 
+	// Journal (inspiré Logseq) : note du jour + entrées récentes
+	mux.HandleFunc("GET /journal", kbHandler.ShowJournal)
+
 	// Pages KB
 	mux.HandleFunc("GET /kb", kbHandler.List)
 	mux.HandleFunc("GET /kb/graph", kbHandler.ShowGraph)

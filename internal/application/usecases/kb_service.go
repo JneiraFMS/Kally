@@ -21,16 +21,46 @@ func NewKBService(repo outbound.KBRepository) *KBService {
 	return &KBService{repo: repo}
 }
 
-// List returns all knowledge bases, optionally filtered by tag.
-func (s *KBService) List(ctx context.Context, tag string) ([]domainkb.KB, error) {
+// List returns all knowledge bases, filtered by the provided tags (AND:
+// every tag must be present). Tag filter values are normalized (case,
+// whitespace, duplicates) and never rejected.
+func (s *KBService) List(ctx context.Context, tags ...string) ([]domainkb.KB, error) {
 	items, err := s.repo.FindAll(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if tag != "" {
-		items = domainkb.FilterByTag(items, tag)
+	tags = domainkb.NormalizeTagFilter(tags)
+	switch len(tags) {
+	case 1:
+		items = domainkb.FilterByTag(items, tags[0])
+	case 0:
+		// sans filtre : toutes les KB
+	default:
+		items = domainkb.FilterByAllTags(items, tags...)
 	}
 	return items, nil
+}
+
+// Journal assembles the daily-journal page: entries whose ID starts with
+// the journal prefix, newest first, plus the state of today's note.
+// today (ex. "2026-11-03") is supplied by the inbound adapter so the
+// use case stays deterministic and testable.
+func (s *KBService) Journal(ctx context.Context, today string) (dto.JournalPage, error) {
+	items, err := s.repo.FindAll(ctx)
+	if err != nil {
+		return dto.JournalPage{}, err
+	}
+	entries := domainkb.FilterByIDPrefix(items, domainkb.JournalPrefix)
+
+	page := dto.JournalPage{Today: today, TodayID: domainkb.JournalPrefix + today, Entries: entries}
+	for i := range entries {
+		if entries[i].ID == page.TodayID {
+			page.TodayExists = true
+			page.TodayEntry = &entries[i]
+			break
+		}
+	}
+	return page, nil
 }
 
 // Get retrieves one knowledge base by ID.

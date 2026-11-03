@@ -16,7 +16,7 @@ func PageKBDetail(currentPath string, k kb.KB, related []kb.KB) gomponents.Node 
 		noteSection("Erreur", monoBody(k.Erreur)),
 		noteSection("Notes", mdBody(k.Notes)),
 		noteSection("Résolution", mdBody(k.Resolution)),
-		relatedSection(related),
+		relatedSection(k, related),
 	}
 
 	return layout("KB "+k.ID, currentPath, []gomponents.Node{
@@ -138,8 +138,10 @@ func noteSection(titre string, body gomponents.Node) gomponents.Node {
 	)
 }
 
-// relatedSection liste les KB partageant au moins un tag (liens bidirectionnels).
-func relatedSection(related []kb.KB) gomponents.Node {
+// relatedSection liste les KB partageant au moins un tag avec la KB
+// principale (liens bidirectionnels), avec en tête le mini-graphe local de
+// la note (inspiré Logseq) quand il y a au moins un voisin.
+func relatedSection(principal kb.KB, related []kb.KB) gomponents.Node {
 	if len(related) == 0 {
 		return noteSection("KB liées",
 			I(Class("text-g-text"), gomponents.Text("Aucune KB liée par tag")),
@@ -166,6 +168,9 @@ func relatedSection(related []kb.KB) gomponents.Node {
 	}
 
 	return noteSection("KB liées",
-		Div(Class("divide-y divide-g-sep"), gomponents.Group(choices)),
+		Div(Class("space-y-4"),
+			localGraph(principal, related),
+			Div(Class("divide-y divide-g-sep"), gomponents.Group(choices)),
+		),
 	)
 }

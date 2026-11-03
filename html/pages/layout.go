@@ -13,6 +13,7 @@ import (
 
 var navElements = []elements.NavbarElements{
 	{Label: "Accueil", Href: "/"},
+	{Label: "Journal", Href: "/journal"},
 	{Label: "Graphe", Href: "/kb/graph"},
 }
 

@@ -16,3 +16,18 @@ type KBDetail struct {
 	KB      domainkb.KB
 	Related []domainkb.KB
 }
+
+// JournalPage is the daily-journal page data (inspired by Logseq):
+// entries newest first, plus the state of today's note.
+type JournalPage struct {
+	// Today est la date du jour, ex. "2026-11-03".
+	Today string
+	// TodayID est l'identifiant attendu de la note du jour (journal-<date>).
+	TodayID string
+	// TodayExists signale que la note du jour a déjà été créée.
+	TodayExists bool
+	// TodayEntry est la note du jour, nil si elle n'existe pas encore.
+	TodayEntry *domainkb.KB
+	// Entries est la liste des entrées du journal, les plus récentes d'abord.
+	Entries []domainkb.KB
+}
