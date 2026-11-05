@@ -160,9 +160,9 @@ func TestOtherPagesNoNestedAnchors(t *testing.T) {
 		mustCardKB(t, "KB22547", "cc_flow", "quantite"),
 	}
 
-	noNestedAnchors(t, renderedPage(t, PageAccueil("/", nil, "")))                   // état vide
+	noNestedAnchors(t, renderedPage(t, PageAccueil("/", nil, "")))                                                                  // état vide
 	noNestedAnchors(t, renderedPage(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: kbs[0], Related: kbs[1:], Neighbors: kbs[1:]}))) // détail
-	noNestedAnchors(t, renderedPage(t, PageKBGraph("/kb/graph", kbs)))               // graphe
+	noNestedAnchors(t, renderedPage(t, PageKBGraph("/kb/graph", kbs)))                                                              // graphe
 }
 
 // TestPageAccueilDesignMinimal : rayons arrondis (rounded-xl), tags en pills,
@@ -252,6 +252,25 @@ func TestPageAccueilSearchBar(t *testing.T) {
 	}
 	if !strings.Contains(html, "id=\"kb-no-results\"") {
 		t.Errorf("l'état « aucun résultat » est absent")
+	}
+}
+
+// TestPageAccueilSearchMarkupGeneralized : le markup de la barre d'accueil
+// est déclaratif (attributs data-fuzzy-*) — le moteur fuzzy est partagé avec
+// le journal et toute future page, sans id figé dans le script.
+func TestPageAccueilSearchMarkupGeneralized(t *testing.T) {
+	kbs := []kb.KB{mustCardKB(t, "KB06644754", "cc_flow")}
+	html := renderedPage(t, PageAccueil("/", kbs, ""))
+
+	for _, want := range []string{
+		`data-fuzzy`,
+		`data-fuzzy-count="kb-search-count"`,
+		`data-fuzzy-no-results="kb-no-results"`,
+		`data-fuzzy-order`,
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("markup de recherche généralisé sans %q", want)
+		}
 	}
 }
 

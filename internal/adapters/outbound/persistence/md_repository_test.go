@@ -186,6 +186,67 @@ func TestMDRepositoryRoundTripTags(t *testing.T) {
 	}
 }
 
+// headingAchats est le cas réel qui avoise les sections du fichier : une
+// heading utilisateur « ## » en début de ligne (ici, dans une note).
+const headingAchats = "## 2. Achats – PR (Purchase Requisition)"
+
+// TestMDRepositoryRoundTripsUserHeadings : une heading utilisateur « ## »
+// saisie dans un champ KB ne doit pas éclater (et vider) le contenu à la
+// relecture. L'adapter l'échappe à l'écriture et la restitue exactement.
+func TestMDRepositoryRoundTripsUserHeadings(t *testing.T) {
+	dir := t.TempDir()
+	repo := NewMDRepository(dir)
+	ctx := context.Background()
+
+	want := mustKB(t, "KB-0001",
+		headingAchats+"\ntrace derrière le titre",
+		headingAchats+"\n\nDétail du dossier :\n- ligne à puce",
+		headingAchats)
+
+	if err := repo.Save(ctx, want); err != nil {
+		t.Fatalf("Save(): %v", err)
+	}
+
+	got, err := repo.FindByID(ctx, "KB-0001")
+	if err != nil {
+		t.Fatalf("FindByID(): %v", err)
+	}
+	if got.Erreur != want.Erreur {
+		t.Errorf("Erreur = %q, want %q", got.Erreur, want.Erreur)
+	}
+	if got.Notes != want.Notes {
+		t.Errorf("Notes = %q, want %q", got.Notes, want.Notes)
+	}
+	if got.Resolution != want.Resolution {
+		t.Errorf("Résolution = %q, want %q", got.Resolution, want.Resolution)
+	}
+}
+
+// TestMDRepositoryRoundTripsHeadingNamedLikeSection : une heading qui a le
+// même nom qu'une section du fichier (« ## Notes ») n'éclate pas non plus la
+// section propriétaire.
+func TestMDRepositoryRoundTripsHeadingNamedLikeSection(t *testing.T) {
+	dir := t.TempDir()
+	repo := NewMDRepository(dir)
+	ctx := context.Background()
+
+	want := mustKB(t, "KB-0002", "", "intro\n\n## Notes\n\nsuite de la note", "")
+
+	if err := repo.Save(ctx, want); err != nil {
+		t.Fatalf("Save(): %v", err)
+	}
+
+	got, err := repo.FindByID(ctx, "KB-0002")
+	if err != nil {
+		t.Fatalf("FindByID(): %v", err)
+	}
+	if got.Notes != want.Notes {
+		t.Errorf("Notes = %q, want %q (heading « ## Notes » avalé)", got.Notes, want.Notes)
+	}
+}
+
+// TestMDRepositoryBackwardCompatibleWithoutFrontMatter : les fichiers de
+// l'ancien format (sans front matter) restent lisibles.
 func TestMDRepositoryBackwardCompatibleWithoutFrontMatter(t *testing.T) {
 	dir := t.TempDir()
 	repo := NewMDRepository(dir)

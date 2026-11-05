@@ -13,7 +13,8 @@ import (
 
 // PageJournal affiche la page journal (inspirée Logseq) : la note du jour —
 // créable en un clic quand elle n'existe pas, ouvrable sinon — puis la liste
-// des entrées de la plus récente à la plus ancienne.
+// des entrées de la plus récente à la plus ancienne, filtrable par la
+// recherche fuzzy partagée (100 % client).
 func PageJournal(currentPath string, page dto.JournalPage) gomponents.Node {
 	content := []gomponents.Node{
 		Div(Class("max-w-5xl mx-auto px-6 py-6 flex items-center justify-between"),
@@ -23,10 +24,10 @@ func PageJournal(currentPath string, page dto.JournalPage) gomponents.Node {
 				gomponents.Text("Retour"),
 			),
 		),
-		Div(Class("max-w-5xl mx-auto px-6 pb-8 space-y-4"),
-			todayCard(page.Today, page.TodayExists),
-			entriesCard(page.Entries),
-		),
+		Div(Class("max-w-5xl mx-auto px-6 pb-8 space-y-4"), gomponents.Group(append(
+			[]gomponents.Node{todayCard(page.Today, page.TodayExists)},
+			entriesSection(page.Entries)...,
+		))),
 	}
 
 	return layout("Journal", currentPath, content)
@@ -58,35 +59,74 @@ func todayCard(today string, todayExists bool) gomponents.Node {
 	)
 }
 
-// entriesCard liste les entrées du journal, de la plus récente à la plus
-// ancienne (préparées par le service), avec un extrait de leur markdown.
-func entriesCard(entries []domainjournal.Entry) gomponents.Node {
+// entriesSection rassemble la partie « entrées » : barre de recherche fuzzy
+// partagée + liste indexée (data-search par ligne) + état « aucun résultat »
+// + script client quand des entrées existent ; sans entrée, un état vide
+// clair (ni barre ni script : rien à filtrer).
+func entriesSection(entries []domainjournal.Entry) []gomponents.Node {
 	if len(entries) == 0 {
-		return Div(Class("bg-g-widget rounded-xl p-8 text-center"),
-			P(Class("text-g-text"),
-				gomponents.Text("Pas encore d'entrée : la note du jour est le meilleur point de départ.")),
-		)
+		return []gomponents.Node{emptyEntriesCard()}
 	}
 
 	var rows []gomponents.Node
 	for _, entry := range entries {
-		rows = append(rows,
-			Div(Class("py-2 flex items-baseline gap-3"),
-				A(Href("/journal/"+entry.Date),
-					Class("font-mono text-g-accent-text font-semibold hover:underline"),
-					gomponents.Text(entry.Date),
-				),
-				Span(Class("text-g-text text-xs truncate"),
-					gomponents.Text(firstLine(entry.Content)),
-				),
-			),
-		)
+		rows = append(rows, entryRow(entry))
 	}
 
-	return Div(Class("bg-g-widget rounded-xl px-6 py-4"),
-		H2(Class("text-sm font-semibold text-g-hi pb-2"), gomponents.Text("Entrées précédentes")),
-		Div(Class("divide-y divide-g-sep"), gomponents.Group(rows)),
+	return []gomponents.Node{
+		searchField("journal-search", "journal-search-count", "journal-no-results",
+			"Rechercher une entrée… (touche / pour filtrer)",
+			"Aucune entrée correspondant à", false),
+		Div(Class("bg-g-widget rounded-xl px-6 py-4"),
+			H2(Class("text-sm font-semibold text-g-hi pb-2"), gomponents.Text("Entrées précédentes")),
+			Div(Class("divide-y divide-g-sep"), gomponents.Group(rows)),
+		),
+		noResultsBlock("journal-no-results", ""),
+		searchScriptNode(),
+	}
+}
+
+// emptyEntriesCard reprend l'ancien état vide de la liste d'entrées.
+func emptyEntriesCard() gomponents.Node {
+	return Div(Class("bg-g-widget rounded-xl p-8 text-center"),
+		P(Class("text-g-text"),
+			gomponents.Text("Pas encore d'entrée : la note du jour est le meilleur point de départ.")),
 	)
+}
+
+// entryRow liste une entrée : date cliquable + extrait du markdown ; la clé
+// data-search alimente le filtre fuzzy client (dates + début du contenu).
+func entryRow(entry domainjournal.Entry) gomponents.Node {
+	return Div(Data("search", journalSearchKey(entry)),
+		Class("py-2 flex items-baseline gap-3"),
+		A(Href("/journal/"+entry.Date),
+			Class("font-mono text-g-accent-text font-semibold hover:underline"),
+			gomponents.Text(entry.Date),
+		),
+		Span(Class("text-g-text text-xs truncate"),
+			gomponents.Text(firstLine(entry.Content)),
+		),
+	)
+}
+
+// journalSearchKey construit la clé de filtre d'une entrée : date brute,
+// date en clair et les 3 premières lignes non vides du markdown, tout en
+// minuscules (le scoreur compare sur un texte déjà abaissé, comme l'index
+// des KB). Garder l'index court garde le DOM léger sur des notes longues.
+func journalSearchKey(entry domainjournal.Entry) string {
+	lines := []string{}
+	for _, line := range strings.Split(entry.Content, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		lines = append(lines, line)
+		if len(lines) == 3 {
+			break
+		}
+	}
+	parts := append([]string{entry.Date, formatDateFR(entry.Date)}, lines...)
+	return strings.TrimSpace(strings.ToLower(strings.Join(parts, " ")))
 }
 
 // formatDateFR affiche une date canonique en clair (« 3 novembre 2026 ») ;

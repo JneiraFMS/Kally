@@ -125,6 +125,19 @@ Persistence formats and filesystem access belong in adapters; domain packages
 must not serialize entities or calculate presentation-specific layout. HTTP
 handlers depend on the inbound application port, never directly on a repository.
 
+### Format des fichiers KB et contenu utilisateur
+
+Un fichier KB délimite ses champs par des sections propres du fichier :
+`## Erreur`, `## Notes`, `## Résolution` (plus l'en-tête `# ID` et le front
+matter `tags:`). Tout contenu utilisateur qui commence une ligne par « ## »
+(qu'une heading saisie dans un champ) **éclatait** la section propriétaire
+et faisait perdre à la relecture tout ce qui la suivait. L'adapter
+(`md_repository.go`) échappe maintenant ces lignes à l'écriture
+(`\## …` — échappement de heading markdown valide) via `escapeUserHeadings`
+et les restitue à la lecture via `unescapeUserHeadings` : le round-trip
+préserve exactement le contenu saisi. Les liens wiki/images restent
+inchangés ; le journal (markdown libre, sans délimiteur) n'est pas concerné.
+
 ### Liens wiki `[[...]]` (Logseq)
 
 Les sections markdown `Notes` et `Résolution` acceptent des liens wiki
@@ -180,6 +193,26 @@ Deux formulaires de création coexistent, sous-tendus par le même use case
   re-rendent `PageKBCreateQuickWith` (jamais le formulaire complet).
 - Accueil : bouton secondaire « Nouvelle KB libre » à côté de « Créer une
   KB » (`html/pages/home.go`).
+
+### Recherche fuzzy partagée (`data-fuzzy`)
+
+Le filtre instantané est 100 % client (`html/pages/home_search.go`) : le
+serveur rend déjà tout ce qui est filtrable, chaque élément porte une clé
+`data-search` minuscule, le scoreur (`fnFuzzyScore`) matche une
+sous-séquence (bonus lettres consécutives et débuts de mot) et le
+raccourci `/` focuse le champ. Le markup est **déclaratif** : l'input
+porte `data-fuzzy` et déclare ses acolytes sur lui-même
+
+- `data-fuzzy-count` : id du compteur « n/total » ;
+- `data-fuzzy-no-results` : id du bloc « aucun résultat » (caché) ;
+- `data-fuzzy-empty` : libellé du message vide ;
+- `data-fuzzy-order` : (optionnel) re-trier par pertinence via `style.order`
+  (grille d'accueil) — sans lui la liste conserve son ordre (journal).
+
+Utilisé par l'accueil (cartes KB, `searchText` = ID + 1ʳᵉ ligne de l'erreur
++ tags) et le journal (`journalSearchKey` = date brute + date FR + 3
+premières lignes non vides de la note). Rendu seulement quand il y a
+quelque chose à filtrer (progressive enhancement).
 
 ### Images collées
 

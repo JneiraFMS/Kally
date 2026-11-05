@@ -2,12 +2,22 @@ package pages
 
 import (
 	"maragu.dev/gomponents"
+	. "maragu.dev/gomponents/html"
 )
 
-// fuzzyScript est le moteur de recherche fuzzy 100 % client de l'accueil.
-// Pourquoi client ? Les cartes sont déjà toutes dans le DOM (rendues par
-// PageAccueil) : filtrer un attribut data-search local est instantané,
-// sans requête réseau ni re-rendu HTML — plus rapide que tout serveur.
+// fuzzyScript est le moteur de recherche fuzzy 100 % client, partagé par
+// toutes les pages qui en déclarent un (accueil : cartes de KB ; journal :
+// entrées listées). Le filtrage porte sur l'attribut data-search local,
+// déjà rendu par le serveur : il est instantané, sans requête réseau ni
+// re-rendu HTML — plus rapide que tout serveur.
+//
+// Markup déclaratif : le champ porte data-fuzzy et déclare ses acolytes :
+//   - data-fuzzy-count      : id du compte « n/total »,
+//   - data-fuzzy-no-results : id du bloc « aucun résultat » (caché/default),
+//   - data-fuzzy-empty      : libellé du message vide (« Aucune KB… »),
+//   - data-fuzzy-order      : (optionnel) re-trier par pertinence via
+//     style.order — grille d'accueil ; la liste du journal reste
+//     chronologique.
 //
 // Principe :
 //   - index construit lazily au premier appui de touche (querySelectorAll
@@ -15,21 +25,25 @@ import (
 //   - scoreur sous-séquence : la requête n'a pas besoin d'être contiguë
 //     ("kbqte" matche "quantite"), bonus lettres consécutives et débuts
 //     de mot pour classer les meilleurs matches,
-//   - combinable avec le filtre ?tag= : le script n'agit que sur l'affichage
-//     des cartes déjà fournies par le serveur,
+//   - combinable avec tout filtre serveur (?tag=…) : le script n'agit que
+//     sur l'affichage des éléments déjà fournis par le serveur,
 //   - raccourci "/" pour focuser le champ, Échap pour effacer.
-const fuzzyScript = `(function () {
+const fuzzyScript = `/* grz-fuzzy */
+(function () {
 "use strict";
 
-var input = document.getElementById("kb-search");
-var count = document.getElementById("kb-search-count");
-var noResults = document.getElementById("kb-no-results");
-if (!input) return;
+var inputs = document.querySelectorAll("input[data-fuzzy]");
+if (!inputs.length) return;
+var input = inputs[0];
+var count = document.getElementById(input.getAttribute("data-fuzzy-count"));
+var noResults = document.getElementById(input.getAttribute("data-fuzzy-no-results"));
+var emptyLabel = input.getAttribute("data-fuzzy-empty") || "Aucun résultat pour";
+var reorder = input.hasAttribute("data-fuzzy-order");
 
 var cards = null;
 
 // Index lazy : au premier appui de touche seulement, on capture chaque
-// carte et sa clé data-search. Aucun coût au chargement de la page.
+// élément et sa clé data-search. Aucun coût au chargement de la page.
 function collect() {
 	cards = [];
 	var nodes = document.querySelectorAll("[data-search]");
@@ -66,8 +80,11 @@ function run() {
 		var score = q === "" ? 1 : fnFuzzyScore(q, c.text);
 		var show = score >= 0;
 		c.el.classList.toggle("hidden", !show);
-		// Tri par pertinence : CSS order (le parent est une grille).
-		c.el.style.order = show && q !== "" ? String(1000000 - score) : "";
+		// Tri par pertinence, seulement pour les pages qui le déclarent
+		// (grille d'accueil). Les listes chronologiques sont préservées.
+		if (reorder) {
+			c.el.style.order = show && q !== "" ? String(1000000 - score) : "";
+		}
 		if (show) shown++;
 	}
 
@@ -75,7 +92,7 @@ function run() {
 	if (noResults) {
 		noResults.classList.toggle("hidden", q === "" || shown > 0);
 		var msg = noResults.firstElementChild;
-		if (msg) msg.textContent = "Aucune KB correspondant à « " + q + " ».";
+		if (msg) msg.textContent = emptyLabel + " « " + q + " ».";
 	}
 }
 
@@ -106,8 +123,46 @@ input.addEventListener("input", run);
 })();
 `
 
-// searchScriptNode retourne l'élément <script> du moteur fuzzy,
-// à injecter en fin de page d'accueil (après les cartes).
+// searchField rend une recherche fuzzy déclarative : l'input (marqueur
+// data-fuzzy) et son compteur « n/total » superposé au bord droit. Identique
+// pour l'accueil et le journal : même moteur, même look.
+func searchField(inputID, countID, noResultsID, placeholder, emptyLabel string, reorder bool) gomponents.Node {
+	return Div(Class("relative"),
+		Input(
+			ID(inputID),
+			Type("search"),
+			AutoComplete("off"),
+			Placeholder(placeholder),
+			Class("w-full px-4 py-2.5 rounded-lg bg-g-block border border-g-border text-g-hi placeholder-g-text focus:border-g-accent outline-none transition"),
+			gomponents.Attr("data-fuzzy"),
+			gomponents.Attr("data-fuzzy-count", countID),
+			gomponents.Attr("data-fuzzy-no-results", noResultsID),
+			gomponents.Attr("data-fuzzy-empty", emptyLabel),
+			gomponents.If(reorder, gomponents.Attr("data-fuzzy-order")),
+		),
+		Span(ID(countID),
+			Class("absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-g-text pointer-events-none"),
+			gomponents.Text(""),
+		),
+	)
+}
+
+// noResultsBlock rend le bloc « aucun résultat » (caché par défaut, et
+// positionnable par classe) dont le texte est posé par le script au
+// premier filtrage : libellé + requête.
+func noResultsBlock(blockID, containerClass string) gomponents.Node {
+	cls := containerClass
+	if cls != "" {
+		cls += " "
+	}
+	cls += "hidden"
+	return Div(ID(blockID), Class(cls),
+		Div(Class("bg-g-widget rounded-xl p-10 text-center text-g-text"), gomponents.Text("")),
+	)
+}
+
+// searchScriptNode retourne l'élément <script> du moteur fuzzy, à injecter
+// après les éléments filtrables.
 func searchScriptNode() gomponents.Node {
 	return gomponents.El("script", gomponents.Raw(fuzzyScript))
 }
