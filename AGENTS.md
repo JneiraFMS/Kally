@@ -136,18 +136,21 @@ d'alias). `Erreur` reste une trace brute, jamais liée.
   traverse jamais une ligne.
 - `internal/domain/kb/links.go` : `LinkTargets`, `Backlinks`, `Neighbors`,
   `LinkEdges`. Les **rétroliens sont orientés** : A cite B ⇒ B affiche A,
-  même sans réciprocité. `Neighbors` réunit tag partagé et lien explicite
-  (dans un sens ou l'autre) pour le mini-graphe.
+  même sans réciprocité. `Neighbors` réunit tag partagé et **cibles
+  sortantes** `[[...]]` : la section « KB liées » les liste, avec un badge
+  « lien » pour celles qui ne partagent aucun tag. Les liens entrants
+  restent dans « Références liées », jamais dupliqués.
 - Rendu (`html/pages/wikilink.go`) : extension goldmark qui produit
   directement un nœud `Link` (priorité 150, avant le `LinkParser`). Les IDs
   connus transitent par le `parser.Context` goldmark, ce qui préserve le
   pool d'instances `Markdown` et sa sûreté en concurrence. Une cible absente
   devient un **lien mort** (`a.wikilink-missing`) ouvrant le formulaire de
   création prérempli (`GET /kb/new?id=...`).
-- Graphe (`html/pages/kb_graph.go`, `kb_local_graph.go`) : `mergedEdges`
-  fusionne arêtes de tags et arêtes de liens explicites en une paire unique ;
-  une arête liée porte `kg-edge kg-edge-link` (accentuée) et un tooltip qui
-  mentionne le lien et/ou les tags partagés.
+- Graphe global (`html/pages/kb_graph.go`) : `mergedEdges` fusionne arêtes de
+  tags et arêtes de liens explicites en une paire unique ; une arête liée
+  porte `kg-edge kg-edge-link` (accentuée) et un tooltip qui mentionne le
+  lien et/ou les tags partagés. La fiche détail n'embarque plus de
+  mini-graphe : la section « KB liées » et le graphe global suffisent.
 - Les liens wiki du journal restent hors périmètre (rétroliens non
   calculés) ; ils peuvent s'afficher comme liens simples sans résolution.
 

@@ -21,9 +21,9 @@ type KBDetail struct {
 	Related []domainkb.KB
 	// Backlinks are the KBs citing KB with [[...]], sorted by ID.
 	Backlinks []domainkb.KB
-	// Neighbors are the KBs connected to KB by a shared tag or an explicit
-	// [[...]] link (either direction), sorted by ID. They feed the local
-	// graph, which mixes both kinds of edges.
+	// Neighbors are the KBs sharing a tag with KB or targeted by one of its
+	// explicit [[...]] links (outgoing only), sorted by ID. Incoming links
+	// stay in Backlinks, so the detail page never lists a KB twice.
 	Neighbors []domainkb.KB
 	// KnownIDs lists every existing KB ID, used by the presentation layer to
 	// tell an existing wiki link from a missing one (missing links offer the

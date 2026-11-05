@@ -43,10 +43,12 @@ func Backlinks(kbs []KB, id string) []KB {
 	return backlinks
 }
 
-// Neighbors retourne les KB voisines d'une KB pour le mini-graphe : celles
-// qui partagent au moins un tag et celles reliées explicitement par [[...]],
-// dans un sens ou dans l'autre. La KB elle-même est exclue ; le résultat est
-// trié par ID. Une KB inconnue n'a aucun voisin.
+// Neighbors retourne les KB voisines d'une KB pour la section « KB liées » :
+// celles qui partagent au moins un tag et celles que la KB cite explicitement
+// avec [[...]] (cibles sortantes existantes). Les liens entrants sont exposés
+// séparément par Backlinks (« Références liées »), ce qui évite les doublons.
+// La KB elle-même, les cibles absentes et les doublons sont exclus ; le
+// résultat est trié par ID. Une KB inconnue n'a aucun voisin.
 func Neighbors(kbs []KB, id string) []KB {
 	self := ByID(kbs, id)
 	if self == nil {
@@ -74,10 +76,7 @@ func Neighbors(kbs []KB, id string) []KB {
 				break
 			}
 		}
-		linked := slices.Contains(LinkTargets(k), id)
-		if _, ok := selfLinks[k.ID]; ok {
-			linked = true
-		}
+		_, linked := selfLinks[k.ID]
 		if sharedTag || linked {
 			neighbors = append(neighbors, k)
 		}

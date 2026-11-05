@@ -142,8 +142,16 @@ func TestKBServiceDetailReturnsBacklinksAndKnownIDs(t *testing.T) {
 	if got, want := detail.KnownIDs, []string{"KB-1", "KB-2", "KB-3"}; !slices.Equal(got, want) {
 		t.Errorf("Detail().KnownIDs = %v, want %v", got, want)
 	}
-	if got, want := domainkb.IDs(detail.Neighbors), []string{"KB-1", "KB-3"}; !slices.Equal(got, want) {
-		t.Errorf("Detail().Neighbors = %v, want %v", got, want)
+	if got := detail.Neighbors; len(got) != 0 {
+		t.Errorf("Detail(KB-2).Neighbors = %v, want vide (liens entrants seulement)", domainkb.IDs(got))
+	}
+
+	detail, err = service.Detail(context.Background(), "KB-3")
+	if err != nil {
+		t.Fatalf("Detail() inattendu: %v", err)
+	}
+	if got, want := domainkb.IDs(detail.Neighbors), []string{"KB-2"}; !slices.Equal(got, want) {
+		t.Errorf("Detail(KB-3).Neighbors = %v, want %v (cible sortante existante)", got, want)
 	}
 
 	detail, err = service.Detail(context.Background(), "KB-1")
@@ -152,6 +160,9 @@ func TestKBServiceDetailReturnsBacklinksAndKnownIDs(t *testing.T) {
 	}
 	if len(detail.Backlinks) != 0 {
 		t.Errorf("Detail(KB-1).Backlinks = %v, want vide", domainkb.IDs(detail.Backlinks))
+	}
+	if got, want := domainkb.IDs(detail.Neighbors), []string{"KB-2"}; !slices.Equal(got, want) {
+		t.Errorf("Detail(KB-1).Neighbors = %v, want %v", got, want)
 	}
 }
 

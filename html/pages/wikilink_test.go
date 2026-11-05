@@ -191,9 +191,9 @@ func TestPageKBGraphRendersExplicitLinkEdge(t *testing.T) {
 	}
 }
 
-// TestPageKBDetailLocalGraphShowsExplicitLinkNeighbor : un voisin relié
-// uniquement par [[...]] apparaît dans le mini-graphe avec une arête liée.
-func TestPageKBDetailLocalGraphShowsExplicitLinkNeighbor(t *testing.T) {
+// TestPageKBDetailListsOutgoingLinkNeighbor : un voisin relié uniquement par
+// un lien sortant [[...]] apparaît dans « KB liées » avec un badge « lien ».
+func TestPageKBDetailListsOutgoingLinkNeighbor(t *testing.T) {
 	k, err := kb.NewKB("KB-0001", "e", "[[KB-0002]]", "")
 	if err != nil {
 		t.Fatalf("NewKB(): %v", err)
@@ -209,13 +209,53 @@ func TestPageKBDetailLocalGraphShowsExplicitLinkNeighbor(t *testing.T) {
 		KnownIDs:  []string{"KB-0001", "KB-0002"},
 	}))
 
-	if !strings.Contains(html, `data-kg="local"`) {
-		t.Fatalf("mini-graphe absent pour un voisin lié:\n%s", html)
+	if !strings.Contains(html, `href="/kb/detail?id=KB-0002"`) {
+		t.Errorf("voisin sortant absent de « KB liées »:\n%s", html)
 	}
-	if !strings.Contains(html, "kg-edge-link") {
-		t.Errorf("arête de lien explicite absente du mini-graphe:\n%s", html)
+	if !strings.Contains(html, `title="Lien explicite [[…]]"`) {
+		t.Errorf("voisin sortant sans badge « lien »:\n%s", html)
 	}
-	if !strings.Contains(html, "Lien explicite") {
-		t.Errorf("tooltip d'arête liée absent du mini-graphe:\n%s", html)
+	if strings.Contains(html, `data-kg="local"`) {
+		t.Errorf("le mini-graphe local ne doit plus être rendu:\n%s", html)
+	}
+}
+
+// TestPageKBDetailTagNeighborHasNoLinkBadge : un voisin retenu par un tag
+// partagé est listé sans badge « lien ».
+func TestPageKBDetailTagNeighborHasNoLinkBadge(t *testing.T) {
+	k, err := kb.NewKB("KB-0001", "e", "", "", "calcul")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+	neighbor, err := kb.NewKB("KB-0002", "voisin", "", "", "calcul")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{
+		KB:        k,
+		Related:   []kb.KB{neighbor},
+		Neighbors: []kb.KB{neighbor},
+	}))
+
+	if !strings.Contains(html, `href="/kb/detail?id=KB-0002"`) {
+		t.Errorf("voisin par tag absent de « KB liées »:\n%s", html)
+	}
+	if strings.Contains(html, `title="Lien explicite [[…]]"`) {
+		t.Errorf("voisin par tag marqué « lien » à tort:\n%s", html)
+	}
+}
+
+// TestPageKBDetailNoNeighbor : sans voisin, la section annonce le vide.
+func TestPageKBDetailNoNeighbor(t *testing.T) {
+	k, err := kb.NewKB("KB-0001", "e", "", "")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
+
+	if !strings.Contains(html, "Aucune KB liée") {
+		t.Errorf("état vide de « KB liées » absent:\n%s", html)
 	}
 }

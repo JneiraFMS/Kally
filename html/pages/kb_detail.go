@@ -21,7 +21,7 @@ func PageKBDetail(currentPath string, detail dto.KBDetail) gomponents.Node {
 		noteSection("Notes", mdBody(k.Notes, detail.KnownIDs)),
 		noteSection("Résolution", mdBody(k.Resolution, detail.KnownIDs)),
 		backlinksSection(detail.Backlinks),
-		relatedSection(k, detail.Related, detail.Neighbors),
+		relatedSection(detail.Related, detail.Neighbors),
 	}
 
 	return layout("KB "+k.ID, currentPath, []gomponents.Node{
@@ -167,6 +167,20 @@ func backlinksSection(backlinks []kb.KB) gomponents.Node {
 // kbEntry rend une KB dans une liste : lien interne, article ServiceNow et
 // extrait de l'erreur.
 func kbEntry(k kb.KB) gomponents.Node {
+	return kbEntryWithBadge(k, false)
+}
+
+// kbEntryWithBadge rend une KB dans une liste ; linked ajoute un badge
+// « lien » signalant une KB citée avec [[...]] sans partager de tag.
+func kbEntryWithBadge(k kb.KB, linked bool) gomponents.Node {
+	var badges []gomponents.Node
+	if linked {
+		badges = append(badges, Span(
+			Class("inline-block px-2 py-0.5 rounded-full bg-g-block text-g-text text-xs"),
+			gomponents.Attr("title", "Lien explicite [[…]]"),
+			gomponents.Text("lien"),
+		))
+	}
 	return Div(Class("py-1.5"),
 		Div(Class("flex items-baseline gap-2"),
 			// Navigation interne bidirectionnelle, conservée.
@@ -177,39 +191,34 @@ func kbEntry(k kb.KB) gomponents.Node {
 			// Article ServiceNow de la KB liée, en lien secondaire.
 			serviceNowLink(k.ID, "ServiceNow ↗",
 				"text-xs text-g-text hover:text-g-hi hover:underline"),
+			gomponents.Group(badges),
 		),
 		Div(Class("text-g-text text-xs"), gomponents.Text(firstLine(k.Erreur))),
 	)
 }
 
-// relatedSection liste les KB partageant au moins un tag avec la KB
-// principale (liens bidirectionnels), avec en tête le mini-graphe local de
-// la note (inspiré Logseq) quand il y a au moins un voisin. Le mini-graphe
-// réunit les voisins par tag et les liens explicites [[...]].
-func relatedSection(principal kb.KB, related, neighbors []kb.KB) gomponents.Node {
-	if len(related) == 0 && len(neighbors) == 0 {
+// relatedSection liste les KB liées à la KB principale : celles qui partagent
+// un tag et celles qu'elle cite explicitement avec [[...]] (badge « lien »).
+// Les liens entrants vivent dans « Références liées », jamais dupliqués ici.
+func relatedSection(related, neighbors []kb.KB) gomponents.Node {
+	if len(neighbors) == 0 {
 		return noteSection("KB liées",
-			I(Class("text-g-text"), gomponents.Text("Aucune KB liée par tag")),
+			I(Class("text-g-text"), gomponents.Text("Aucune KB liée")),
 		)
 	}
 
-	var body []gomponents.Node
-	if len(neighbors) > 0 {
-		body = append(body, localGraph(principal, neighbors))
+	relatedIDs := make(map[string]struct{}, len(related))
+	for _, k := range related {
+		relatedIDs[k.ID] = struct{}{}
 	}
-	if len(related) == 0 {
-		body = append(body,
-			I(Class("text-g-text"), gomponents.Text("Aucune KB liée par tag")))
-	} else {
-		var choices []gomponents.Node
-		for _, k := range related {
-			choices = append(choices, kbEntry(k))
-		}
-		body = append(body,
-			Div(Class("divide-y divide-g-sep"), gomponents.Group(choices)))
+
+	var choices []gomponents.Node
+	for _, k := range neighbors {
+		_, sharesTag := relatedIDs[k.ID]
+		choices = append(choices, kbEntryWithBadge(k, !sharesTag))
 	}
 
 	return noteSection("KB liées",
-		Div(Class("space-y-4"), gomponents.Group(body)),
+		Div(Class("divide-y divide-g-sep"), gomponents.Group(choices)),
 	)
 }

@@ -129,10 +129,10 @@ func TestLinkEdgesNormalizeOrder(t *testing.T) {
 	}
 }
 
-// TestNeighborsUnionTagAndLinks : le voisinage du mini-graphe réunit les KB
-// liées par tag et les KB liées explicitement, dans les deux sens, triées
-// par ID. Une KB sans rapport reste exclue.
-func TestNeighborsUnionTagAndLinks(t *testing.T) {
+// TestNeighborsUnionTagAndOutgoingLinks : le voisinage de la fiche réunit les
+// KB liées par tag et les cibles sortantes [[...]], triées par ID. Les liens
+// entrants restent dans Backlinks et une KB sans rapport reste exclue.
+func TestNeighborsUnionTagAndOutgoingLinks(t *testing.T) {
 	kbs := []KB{
 		mustLinkKB(t, "KB-A", "", "[[KB-C]]", ""),
 		mustLinkKB(t, "KB-B", "", "", ""),
@@ -140,14 +140,25 @@ func TestNeighborsUnionTagAndLinks(t *testing.T) {
 		mustLinkKB(t, "KB-D", "", "[[KB-A]]", ""),
 		mustLinkKB(t, "KB-E", "", "", ""),
 	}
-	// KB-A et KB-B partagent un tag, KB-C est citée, KB-D cite KB-A.
+	// KB-A et KB-B partagent un tag, KB-C est citée (sortant), KB-D cite
+	// KB-A (entrant, donc hors « KB liées »).
 	kbs[0].Tags = []string{"calcul"}
 	kbs[1].Tags = []string{"calcul"}
 
 	got := IDs(Neighbors(kbs, "KB-A"))
-	want := []string{"KB-B", "KB-C", "KB-D"}
+	want := []string{"KB-B", "KB-C"}
 	if !slices.Equal(got, want) {
 		t.Errorf("Neighbors(KB-A) = %v, want %v", got, want)
+	}
+}
+
+func TestNeighborsIgnoreMissingTargets(t *testing.T) {
+	kbs := []KB{
+		mustLinkKB(t, "KB-A", "", "[[KB-INCONNUE]] et [[KB-A]]", ""),
+	}
+
+	if got := IDs(Neighbors(kbs, "KB-A")); len(got) != 0 {
+		t.Errorf("Neighbors(KB-A) = %v, want vide (cible absente et auto-lien exclus)", got)
 	}
 }
 
