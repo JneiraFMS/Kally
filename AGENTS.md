@@ -155,6 +155,32 @@ d'alias). `Erreur` reste une trace brute, jamais liée.
 - Les liens wiki du journal restent hors périmètre (rétroliens non
   calculés) ; ils peuvent s'afficher comme liens simples sans résolution.
 
+### Création libre de KB (`/kb/new/quick`)
+
+Deux formulaires de création coexistent, sous-tendus par le même use case
+`KBService.Create` :
+
+- formulaire complet : `GET /kb/new` → `POST /kb` (identifiant, Erreur,
+  Notes, Résolution, tags) ;
+- **mode libre** : `GET /kb/new/quick` → `POST /kb/quick` (identifiant saisi
+  à la main, une seule note markdown libre avec images collables, tags
+  optionnels). Les sections Erreur/Résolution sont absentes du formulaire
+  (vide à la création) et restent complètables via l'édition. La fiche
+  détail est **adaptative** : seules les sections non vides se rendent
+  (`PageKBDetail`), donc une KB libre garde sa forme d'origine tant qu'elle
+  n'est pas complétée ; il n'existe plus de mention « — vide — » de secours
+ pour les fiches KB.
+
+- `html/pages/kb_create.go` : `kbQuickFormFields` est une liste **sans
+  dérive possible** des sections Erreur/Résolution ; `kbEditFieldsFor`
+  dérive de `kbFormFields` (toute option ajoutée à la création se propage
+  à l'édition — ce couplage a corrigé un bug d'images collables).
+- `web/kb_handler.go` : `ShowNewQuickForm` / `CreateQuick` réutilisent
+  `inputFromRequest` et les messages de validation ; les erreurs
+  re-rendent `PageKBCreateQuickWith` (jamais le formulaire complet).
+- Accueil : bouton secondaire « Nouvelle KB libre » à côté de « Créer une
+  KB » (`html/pages/home.go`).
+
 ### Images collées
 
 Les zones markdown `notes`, `resolution` (KB) et `content` (journal)

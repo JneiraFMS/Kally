@@ -62,6 +62,44 @@ func (h *KBHandler) ShowNewForm(w http.ResponseWriter, r *http.Request) {
 	renderNode(w, pages.PageKBCreateWith(r.URL.Path, form))
 }
 
+// ShowNewQuickForm displays the free-form creation: a hand-written ID, a
+// single markdown note (pasteable images) and optional tags. Erreur and
+// Résolution stay fillable through the full edit form.
+func (h *KBHandler) ShowNewQuickForm(w http.ResponseWriter, r *http.Request) {
+	renderNode(w, pages.PageKBCreateQuick(r.URL.Path))
+}
+
+// CreateQuick validates and saves the free-form creation. It reuses the
+// same Create use case; validation errors re-render the free form instead
+// of the full one.
+func (h *KBHandler) CreateQuick(w http.ResponseWriter, r *http.Request) {
+	if !parseForm(w, r) {
+		return
+	}
+	item, err := h.app.Create(r.Context(), inputFromRequest(r))
+	if err != nil {
+		switch {
+		case errors.Is(err, application.ErrAlreadyExists):
+			h.renderQuickFormError(w, r, http.StatusConflict,
+				duplicateMessage(strings.TrimSpace(r.FormValue("id"))))
+		case errors.Is(err, domainkb.ErrInvalidID), errors.Is(err, domainkb.ErrInvalidTag):
+			h.renderQuickFormError(w, r, http.StatusBadRequest, validationMessage(err))
+		default:
+			writeInternalError(w, err)
+		}
+		return
+	}
+	redirectToDetail(w, r, item.ID)
+}
+
+// renderQuickFormError répond à une erreur du formulaire libre (page
+// complète pré-remplie en natif, message seul en htmx).
+func (h *KBHandler) renderQuickFormError(w http.ResponseWriter, r *http.Request, status int, message gomponents.Node) {
+	respondFormError(w, r, status, message,
+		pages.PageKBCreateQuickWith(r.URL.Path,
+			pages.FormulaireKB{Valeurs: formValues(r), Message: message}))
+}
+
 // ShowGraph displays the global knowledge-base graph.
 func (h *KBHandler) ShowGraph(w http.ResponseWriter, r *http.Request) {
 	items, err := h.app.List(r.Context())

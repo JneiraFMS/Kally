@@ -36,12 +36,16 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 		cards = append(cards, kbCard(k))
 	}
 
+	// Le bouton « Créer une KB » coexiste avec un accès au mode libre.
 	header := []gomponents.Node{
 		Div(Class("flex items-center justify-between"),
 			H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text("Bases de connaissance")),
-			A(Href("/kb/new"),
-				Class("px-4 py-2 rounded-lg text-g-ink bg-g-accent hover:brightness-110 font-medium transition"),
-				gomponents.Text("Créer une KB"),
+			Div(Class("flex items-center gap-2"),
+				secondaryAction("/kb/new/quick", "Nouvelle KB libre"),
+				A(Href("/kb/new"),
+					Class("px-4 py-2 rounded-lg text-g-ink bg-g-accent hover:brightness-110 font-medium transition"),
+					gomponents.Text("Créer une KB"),
+				),
 			),
 		),
 	}

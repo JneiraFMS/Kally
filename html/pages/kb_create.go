@@ -17,6 +17,16 @@ var kbFormFields = []elements.ChampFormulaire{
 	{Nom: "tags", Type: "text", Label: "Tags (séparés par espace ou virgule) :"},
 }
 
+// kbQuickFormFields décrit le formulaire de création libre : un identifiant
+// saisi à la main, une seule note markdown libre et des tags optionnels.
+// Erreur et Résolution sont absentes (elles restent complètables via le
+// formulaire d'édition complet).
+var kbQuickFormFields = []elements.ChampFormulaire{
+	{Nom: "id", Type: "text", Label: "Identifiant de la KB (ex: KB-0001) :"},
+	{Nom: "notes", Type: "textarea", Label: "Note libre (markdown) :", Rows: 14, Images: true},
+	{Nom: "tags", Type: "text", Label: "Tags (séparés par espace ou virgule) :"},
+}
+
 // FormulaireKB transporte l'état d'un formulaire de KB rendu après une
 // erreur : valeurs déjà saisies (clé = name du champ) et message à afficher
 // dans la zone #reponse-serveur. Les champs en lecture seule ne sont jamais
@@ -36,6 +46,19 @@ func PageKBCreate(currentPath string) gomponents.Node {
 func PageKBCreateWith(currentPath string, form FormulaireKB) gomponents.Node {
 	return kbFormPage(currentPath, "Créer une KB", "/kb",
 		withValues(kbFormFields, form.Valeurs), form.Message)
+}
+
+// PageKBCreateQuick affiche le formulaire de création libre : identifiant
+// saisi à la main, une seule note markdown libre, tags optionnels.
+func PageKBCreateQuick(currentPath string) gomponents.Node {
+	return PageKBCreateQuickWith(currentPath, FormulaireKB{})
+}
+
+// PageKBCreateQuickWith ré-affiche le formulaire libre en conservant les
+// valeurs saisies et le message de validation (flux sans JavaScript).
+func PageKBCreateQuickWith(currentPath string, form FormulaireKB) gomponents.Node {
+	return kbFormPage(currentPath, "Nouvelle KB libre", "/kb/quick",
+		withValues(kbQuickFormFields, form.Valeurs), form.Message)
 }
 
 // withValues retourne une copie des champs où les valeurs fournies

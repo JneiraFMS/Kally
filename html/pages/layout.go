@@ -166,6 +166,26 @@ input.field-error:focus-visible, textarea.field-error:focus-visible {
 	border-left: 2px solid var(--g-sep); padding-left: 0.75rem;
 	color: var(--g-text); margin: 0.25rem 0;
 }
+/* Tableaux markdown (extension Table goldmark) : bordures fines thémées,
+   cellules pads. display:block + overflow-x:auto : un tableau large défile
+   horizontalement au lieu de déborder de la fiche. */
+.md table {
+	display: block;
+	max-width: 100%;
+	overflow-x: auto;
+	border-collapse: collapse;
+	margin: 0.5rem 0;
+}
+.md th, .md td {
+	text-align: left;
+	border: 1px solid var(--g-border);
+	padding: 0.375rem 0.6rem;
+}
+.md th {
+	background: var(--g-block);
+	color: var(--g-hi);
+	font-weight: 600;
+}
 
 /* Coloration syntaxique (Chroma, mode classes) : familles token couvertes,
    le reste hérite de la couleur du texte. Tokens g-syn-* calibrés pour

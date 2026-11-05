@@ -11,6 +11,7 @@ import (
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/extension"
 	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/util"
 )
@@ -21,10 +22,14 @@ import (
 //     inline émise — le thème actif (dark/light) colore via les var(--g-*)
 //     définies dans layout.go (.chroma-*). Langages connus seulement,
 //     sans détection auto (langage inconnu → bloc inerte, sûr).
+//   - table : tableaux pipes GitHub (le style .md table vit dans layout.go ;
+//     l'alignement demandé est rendu par un style inline de goldmark, le
+//     seul cas où .md contient un attribut style).
 //   - wikiLinkExtension : syntaxe [[ID]] rendue en lien vers la fiche (ou
 //     vers la création préremplie pour une cible absente).
 var goldmarkOptions = []goldmark.Option{
 	goldmark.WithExtensions(
+		extension.Table,
 		highlighting.NewHighlighting(
 			highlighting.WithWrapperRenderer(codeBlockWrapper),
 			highlighting.WithFormatOptions(
