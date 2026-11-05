@@ -1,7 +1,6 @@
 package pages
 
 import (
-	"fmt"
 	kb "grz/internal/domain/kb"
 	"math"
 	"slices"
@@ -28,6 +27,11 @@ const graphCSS = `.kg-edge {
 	stroke-opacity: 0.6;
 	stroke-width: 1;
 	stroke-linecap: round;
+}
+.kg-edge-link {
+	stroke: var(--g-accent);
+	stroke-opacity: 0.9;
+	stroke-width: 1.6;
 }
 .kg-dot { fill: var(--g-cyan); }
 .kg-label {
@@ -108,7 +112,8 @@ for (var i = 0; i < nodes.length; i++) {
 })();`
 
 // PageKBGraph affiche la vue graphe globale : nœuds = KB, arêtes = tag
-// partagé (relation bidirectionnelle), sans librairie externe (SVG inline).
+// partagé ou lien explicite [[...]] (relations non orientées), sans
+// librairie externe (SVG inline).
 func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 	content := []gomponents.Node{
 		Div(Class("max-w-5xl mx-auto px-6 py-6 flex items-center justify-between"),
@@ -158,7 +163,7 @@ func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 			),
 			// Légende : une phrase, ce que montre le graphe
 			P(Class("text-xs text-g-text"),
-				gomponents.Text("Un point par KB, une ligne par tag partagé. Survolez un point pour suivre ses liens, cliquez-le pour ouvrir la fiche."),
+				gomponents.Text("Un point par KB, une ligne par tag partagé ou lien [[…]] explicite (accentué). Survolez un point pour suivre ses liens, cliquez-le pour ouvrir la fiche."),
 			),
 			// Surlignage des arêtes du nœud survolé (dégradation douce sans JS)
 			gomponents.El("script", gomponents.Raw(graphScript)),
@@ -168,11 +173,54 @@ func PageKBGraph(currentPath string, kbs []kb.KB) gomponents.Node {
 	return layout("Graphe des KB", currentPath, content)
 }
 
+// mergedEdges réunit les arêtes de tags partagés et les arêtes de liens
+// explicites [[...]], une seule ligne par paire. Linked reste vrai dès que
+// l'une des deux KB cite l'autre, même si elles partagent aussi un tag.
+// Le résultat est trié par A puis B (affichage déterministe).
+func mergedEdges(kbs []kb.KB) []kb.GraphEdge {
+	type pair struct{ a, b string }
+	byPair := make(map[pair]kb.GraphEdge)
+	for _, e := range kb.GraphEdges(kbs) {
+		byPair[pair{a: e.A, b: e.B}] = e
+	}
+	for _, e := range kb.LinkEdges(kbs) {
+		key := pair{a: e.A, b: e.B}
+		if existing, ok := byPair[key]; ok {
+			existing.Linked = true
+			byPair[key] = existing
+			continue
+		}
+		byPair[key] = e
+	}
+
+	merged := make([]kb.GraphEdge, 0, len(byPair))
+	for _, e := range byPair {
+		merged = append(merged, e)
+	}
+	slices.SortFunc(merged, func(a, b kb.GraphEdge) int {
+		if a.A != b.A {
+			return strings.Compare(a.A, b.A)
+		}
+		return strings.Compare(a.B, b.B)
+	})
+	return merged
+}
+
+// edgeClass distingue une arête de tag (filet neutre) d'une arête de lien
+// explicite (accentuée).
+func edgeClass(e kb.GraphEdge) string {
+	if e.Linked {
+		return "kg-edge kg-edge-link"
+	}
+	return "kg-edge"
+}
+
 // edges rend une ligne SVG discrète (filet fin, bouts arrondis) par paire
-// de KB partageant un tag, avec le tag partagé en tooltip natif.
+// de KB reliées par un tag ou un lien explicite, avec le motif en tooltip
+// natif.
 func edges(kbs []kb.KB, posOf map[string]graphNode) []gomponents.Node {
 	var lines []gomponents.Node
-	for _, e := range kb.GraphEdges(kbs) {
+	for _, e := range mergedEdges(kbs) {
 		a, okA := posOf[e.A]
 		b, okB := posOf[e.B]
 		if !okA || !okB {
@@ -182,11 +230,11 @@ func edges(kbs []kb.KB, posOf map[string]graphNode) []gomponents.Node {
 			gomponents.El("line",
 				gomponents.Attr("x1", f(a.X)), gomponents.Attr("y1", f(a.Y)),
 				gomponents.Attr("x2", f(b.X)), gomponents.Attr("y2", f(b.Y)),
-				gomponents.Attr("class", "kg-edge"),
+				gomponents.Attr("class", edgeClass(e)),
 				// Extrémités pour le surlignage kg-hot au survol du nœud
 				gomponents.Attr("data-a", e.A),
 				gomponents.Attr("data-b", e.B),
-				gomponents.El("title", gomponents.Text(edgeTooltip(e.Tags))),
+				gomponents.El("title", gomponents.Text(edgeTooltip(e))),
 			),
 		)
 	}
@@ -250,12 +298,28 @@ func nodeTooltip(k kb.KB, id string) string {
 	return id + " — " + msg + " (" + tags + ")"
 }
 
-// edgeTooltip construit le tooltip d'une arête : le(s) tag(s) partagé(s).
-func edgeTooltip(tags []string) string {
-	if len(tags) == 1 {
-		return fmt.Sprintf("Tag partagé : %s", tags[0])
+// edgeTooltip construit le tooltip d'une arête : tag(s) partagé(s) et/ou
+// lien explicite [[...]].
+func edgeTooltip(e kb.GraphEdge) string {
+	tags := ""
+	switch len(e.Tags) {
+	case 0:
+	case 1:
+		tags = "tag partagé : " + e.Tags[0]
+	default:
+		tags = "tags partagés : " + strings.Join(e.Tags, ", ")
 	}
-	return fmt.Sprintf("Tags partagés : %s", strings.Join(tags, ", "))
+
+	if e.Linked {
+		if tags == "" {
+			return "Lien explicite"
+		}
+		return "Lien explicite + " + tags
+	}
+	if tags == "" {
+		return ""
+	}
+	return strings.ToUpper(tags[:1]) + tags[1:]
 }
 
 // f formate une coordonnée flottante pour un attribut SVG.

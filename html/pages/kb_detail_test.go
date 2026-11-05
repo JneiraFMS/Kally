@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"grz/internal/application/dto"
 	kb "grz/internal/domain/kb"
 
 	"maragu.dev/gomponents"
@@ -30,7 +31,7 @@ func TestPageKBDetailRendersNoteStyle(t *testing.T) {
 		related = append(related, k2)
 	}
 
-	html := renderNode(t, PageKBDetail("/kb/detail", k, related))
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k, Related: related, Neighbors: related}))
 
 	// Titre de la note : h1 (sémantique) contenant le lien vers l'article
 	// ServiceNow de la KB, ouverture dans un nouvel onglet sécurisée.
@@ -108,7 +109,7 @@ func TestPageKBDetailRendersSectionsContent(t *testing.T) {
 		t.Fatalf("NewKB(): %v", err)
 	}
 
-	html := renderNode(t, PageKBDetail("/kb/detail", k, nil))
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
 
 	// Erreur : bloc <pre> monospace, texte brut (pas du markdown)
 	if !strings.Contains(html, `<pre class="font-mono`) {
@@ -154,7 +155,7 @@ func TestPageKBDetailErreurCodeSurface(t *testing.T) {
 		t.Fatalf("NewKB(): %v", err)
 	}
 
-	html := renderNode(t, PageKBDetail("/kb/detail", k, nil))
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
 
 	start := strings.Index(html, `<pre class="font-mono`)
 	if start < 0 {
@@ -181,7 +182,7 @@ func TestPageKBDetailMarkdownIsSafe(t *testing.T) {
 		t.Fatalf("NewKB(): %v", err)
 	}
 
-	html := renderNode(t, PageKBDetail("/kb/detail", k, nil))
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
 
 	if strings.Contains(html, "<script>alert(1)") {
 		t.Errorf("le HTML brut du markdown est injecté tel quel:\n%s", html)
@@ -201,7 +202,7 @@ func TestPageKBDetailEmptySectionsStillMarked(t *testing.T) {
 		t.Fatalf("NewKB(): %v", err)
 	}
 
-	html := renderNode(t, PageKBDetail("/kb/detail", k, nil))
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
 
 	if strings.Count(html, "— vide —") != 2 {
 		t.Errorf("sections vides non marquées « — vide — »:\n%s", html)
@@ -222,7 +223,7 @@ func TestPageKBDetailHasDeleteAction(t *testing.T) {
 		t.Fatalf("NewKB(): %v", err)
 	}
 
-	html := renderNode(t, PageKBDetail("/kb/detail", k, nil))
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
 
 	if !strings.Contains(html, `action="/kb/delete"`) || !strings.Contains(html, `method="post"`) {
 		t.Errorf("formulaire de suppression natif manquant:\n%s", html)

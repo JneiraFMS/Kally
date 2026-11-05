@@ -24,7 +24,7 @@ func PageJournalEntry(currentPath string, page dto.JournalEntryPage) gomponents.
 		Div(Class("max-w-5xl mx-auto px-6 pb-6"),
 			Div(Class("max-w-3xl bg-g-widget rounded-xl px-8 py-8 space-y-6"),
 				H1(Class("text-xl font-semibold text-g-hi"), gomponents.Text(formatDateFR(date))),
-				mdBody(page.Entry.Content),
+				mdBody(page.Entry.Content, nil),
 			),
 		),
 		journalNav(page),

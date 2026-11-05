@@ -467,6 +467,85 @@ func TestKBHandlerShowGraph(t *testing.T) {
 	}
 }
 
+// TestKBHandlerShowNewFormPrefillsID : un lien mort [[KB-0042]] ouvre le
+// formulaire de création avec l'identifiant déjà saisi.
+func TestKBHandlerShowNewFormPrefillsID(t *testing.T) {
+	h := newTestHandler(newFakeRepo())
+
+	req := httptest.NewRequest("GET", "/kb/new?id=KB-0042", nil)
+	w := httptest.NewRecorder()
+	h.ShowNewForm(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("ShowNewForm() status = %d, want 200", w.Code)
+	}
+	if body := w.Body.String(); !strings.Contains(body, `value="KB-0042"`) {
+		t.Errorf("ShowNewForm() ne préremplit pas l'identifiant: %s", body)
+	}
+}
+
+// TestKBHandlerShowNewFormIgnoresInvalidID : un identifiant invalide n'est
+// ni prérempli ni répercuté dans la page (aucune injection).
+func TestKBHandlerShowNewFormIgnoresInvalidID(t *testing.T) {
+	h := newTestHandler(newFakeRepo())
+
+	req := httptest.NewRequest("GET", "/kb/new?id="+url.QueryEscape("../hack"), nil)
+	w := httptest.NewRecorder()
+	h.ShowNewForm(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("ShowNewForm() status = %d, want 200", w.Code)
+	}
+	if body := w.Body.String(); strings.Contains(body, "../hack") {
+		t.Errorf("ShowNewForm() répercute un identifiant invalide: %s", body)
+	}
+}
+
+// TestKBHandlerDetailRendersWikiLinksAndBacklinks : de bout en bout, la fiche
+// rend les liens [[...]] (existant ou mort) et les rétroliens orientés.
+func TestKBHandlerDetailRendersWikiLinksAndBacklinks(t *testing.T) {
+	repo := newFakeRepo()
+	source, err := domainkb.NewKB("KB-0001", "erreur source", "voir [[KB-0002]] et [[KB-9999]]", "")
+	if err != nil {
+		t.Fatalf("NewKB(source): %v", err)
+	}
+	target, err := domainkb.NewKB("KB-0002", "erreur cible", "", "")
+	if err != nil {
+		t.Fatalf("NewKB(target): %v", err)
+	}
+	if err := repo.Save(context.Background(), source); err != nil {
+		t.Fatalf("Save(source): %v", err)
+	}
+	if err := repo.Save(context.Background(), target); err != nil {
+		t.Fatalf("Save(target): %v", err)
+	}
+	h := newTestHandler(repo)
+
+	// La source rend un lien existant et un lien mort.
+	req := httptest.NewRequest("GET", "/kb/detail?id=KB-0001", nil)
+	w := httptest.NewRecorder()
+	h.Detail(w, req)
+	body := w.Body.String()
+	if !strings.Contains(body, `href="/kb/detail?id=KB-0002"`) {
+		t.Errorf("Detail(KB-0001) sans lien wiki vers KB-0002")
+	}
+	if !strings.Contains(body, `href="/kb/new?id=KB-9999"`) {
+		t.Errorf("Detail(KB-0001) sans lien mort vers la création de KB-9999")
+	}
+
+	// La cible affiche la source en rétrolien, sans réciprocité.
+	req = httptest.NewRequest("GET", "/kb/detail?id=KB-0002", nil)
+	w = httptest.NewRecorder()
+	h.Detail(w, req)
+	body = w.Body.String()
+	if !strings.Contains(body, "Références liées") {
+		t.Errorf("Detail(KB-0002) sans section de rétroliens")
+	}
+	if !strings.Contains(body, "erreur source") {
+		t.Errorf("Detail(KB-0002) sans extrait du rétrolien KB-0001")
+	}
+}
+
 func TestKBHandlerDetailShowsRelatedKBs(t *testing.T) {
 	repo := newFakeRepo()
 	if err := seedKB(t, repo, "KB-0001", "kpi"); err != nil {

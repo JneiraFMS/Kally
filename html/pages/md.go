@@ -11,6 +11,7 @@ import (
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
 	"github.com/yuin/goldmark"
 	highlighting "github.com/yuin/goldmark-highlighting/v2"
+	"github.com/yuin/goldmark/parser"
 	"github.com/yuin/goldmark/util"
 )
 
@@ -20,14 +21,19 @@ import (
 //     inline émise — le thème actif (dark/light) colore via les var(--g-*)
 //     définies dans layout.go (.chroma-*). Langages connus seulement,
 //     sans détection auto (langage inconnu → bloc inerte, sûr).
+//   - wikiLinkExtension : syntaxe [[ID]] rendue en lien vers la fiche (ou
+//     vers la création préremplie pour une cible absente).
 var goldmarkOptions = []goldmark.Option{
-	goldmark.WithExtensions(highlighting.NewHighlighting(
-		highlighting.WithWrapperRenderer(codeBlockWrapper),
-		highlighting.WithFormatOptions(
-			chromahtml.WithClasses(true),
-			chromahtml.ClassPrefix("chroma-"),
+	goldmark.WithExtensions(
+		highlighting.NewHighlighting(
+			highlighting.WithWrapperRenderer(codeBlockWrapper),
+			highlighting.WithFormatOptions(
+				chromahtml.WithClasses(true),
+				chromahtml.ClassPrefix("chroma-"),
+			),
 		),
-	)),
+		wikiLinkExtension{},
+	),
 }
 
 var markdownPool = sync.Pool{
@@ -129,10 +135,27 @@ func codeCopyScriptNode() gomponents.Node {
 // les enrichissements markdown restent fonctionnels (gras, listes, code).
 // En cas d'erreur de rendu, le texte brut est affiché (échappé par
 // gomponents.Text) plutôt qu'une fiche vide.
+//
+// Les liens wiki [[ID]] sont rendus comme des liens existants : utiliser
+// mdToNodeWithKnown pour distinguer les cibles absentes.
 func mdToNode(md string) gomponents.Node {
+	return mdToNodeWithKnown(md, nil)
+}
+
+// mdToNodeWithKnown rend du markdown en résolvant les liens wiki contre les
+// IDs connus. known == nil signifie « résolveur inconnu » (tous les liens
+// sont considérés existants) ; une liste non nil, même vide, active la
+// détection des liens morts.
+func mdToNodeWithKnown(md string, known []string) gomponents.Node {
 	markdown := markdownPool.Get().(goldmark.Markdown)
 	var buf bytes.Buffer
-	err := markdown.Convert([]byte(md), &buf)
+	opts := []parser.ParseOption{}
+	if known != nil {
+		pc := parser.NewContext()
+		pc.Set(knownIDsKey, known)
+		opts = append(opts, parser.WithContext(pc))
+	}
+	err := markdown.Convert([]byte(md), &buf, opts...)
 	markdownPool.Put(markdown)
 	if err != nil {
 		return Div(Class("md"), gomponents.Text(md))

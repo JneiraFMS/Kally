@@ -16,8 +16,19 @@ type KBInput struct {
 
 // KBDetail is the detail page data prepared by the application layer.
 type KBDetail struct {
-	KB      domainkb.KB
+	KB domainkb.KB
+	// Related are the KBs sharing at least one tag with KB.
 	Related []domainkb.KB
+	// Backlinks are the KBs citing KB with [[...]], sorted by ID.
+	Backlinks []domainkb.KB
+	// Neighbors are the KBs sharing a tag with KB or targeted by one of its
+	// explicit [[...]] links (outgoing only), sorted by ID. Incoming links
+	// stay in Backlinks, so the detail page never lists a KB twice.
+	Neighbors []domainkb.KB
+	// KnownIDs lists every existing KB ID, used by the presentation layer to
+	// tell an existing wiki link from a missing one (missing links offer the
+	// creation form).
+	KnownIDs []string
 }
 
 // JournalInput is the application input for a journal entry: a date
