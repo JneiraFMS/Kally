@@ -151,6 +151,12 @@ input.field-error:focus-visible, textarea.field-error:focus-visible {
 .md-code-copy:focus-visible { outline: 2px solid var(--g-cyan); outline-offset: 2px; }
 .md-code-copy:disabled { cursor: wait; opacity: 0.7; }
 .md a { color: var(--g-accent-text); text-decoration: underline; }
+.md img {
+	max-width: 100%;
+	height: auto;
+	border-radius: 0.5rem;
+	margin: 0.5rem 0;
+}
 .md a.wikilink { text-underline-offset: 2px; }
 .md a.wikilink-missing {
 	color: var(--g-negative-text);

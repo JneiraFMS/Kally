@@ -102,12 +102,13 @@ The current implementation keeps those boundaries in these packages:
 internal/domain/kb                          # KB entity and domain rules (tags, graph, wiki links)
 internal/domain/wikilink                    # [[cible]] grammar and extraction (pure, no HTML/storage)
 internal/domain/journal                     # journal entry (free markdown, dated — Logseq)
-internal/application/usecases                # KBService and JournalService orchestration
+internal/domain/media                       # pasted-image rules (formats, size, content-addressed names)
+internal/application/usecases                # KBService, JournalService and MediaService orchestration
 internal/application/dto                     # application input/output models
 internal/application/ports/{inbound,outbound} # application contracts
-internal/adapters/outbound/persistence       # Markdown file repositories (KB + journal)
-web                                          # inbound HTTP adapters (kb_handler, journal_handler)
-html/pages                                   # HTML presentation adapter
+internal/adapters/outbound/persistence       # Markdown + media file repositories
+web                                          # inbound HTTP adapters (kb_handler, journal_handler, media_handler)
+html/pages                                   # HTML presentation adapter (incl. image_paste.go script)
 main.go                                      # dependency composition root
 ```
 
@@ -153,6 +154,37 @@ d'alias). `Erreur` reste une trace brute, jamais liée.
   mini-graphe : la section « KB liées » et le graphe global suffisent.
 - Les liens wiki du journal restent hors périmètre (rétroliens non
   calculés) ; ils peuvent s'afficher comme liens simples sans résolution.
+
+### Images collées
+
+Les zones markdown `notes`, `resolution` (KB) et `content` (journal)
+acceptent le collage et le glisser-déposer d'images. `Erreur` reste une
+trace brute, sans image.
+
+- `internal/domain/media` : règles pures (`NameFor`, `ValidName`,
+  `ContentType`, `MaxSize`). Formats acceptés : PNG, JPEG, GIF, WebP —
+  **SVG refusé** (script embarqué). Taille maximale 5 Mio. Nom =
+  `<sha256>.<ext>`, adressé par le contenu : deux images identiques
+  partagent le même fichier.
+- `web/media_handler.go` : `POST /media` reçoit le binaire brut et
+  recalcule le type avec `http.DetectContentType` (l'en-tête client n'est
+  jamais une preuve). `GET /media/{name}` sert le fichier avec
+  `X-Content-Type-Options: nosniff` et un cache immuable (nom = hash).
+  Erreurs : `415` format refusé, `413` taille dépassée, `400` corps vide
+  ou nom invalide, `404` nom inconnu.
+- `internal/adapters/outbound/persistence/local_media_repository.go` :
+  stockage dans `data/media/` (couvert par `.gitignore` via `data/`),
+  écriture atomique (fichier temporaire puis `rename`), déduplication par
+  nom.
+- `html/pages/image_paste.go` : script inclus **uniquement** dans les pages
+  de formulaire. Il insère un marqueur pendant l'envoi, le remplace par
+  `![image](/media/<hash>.<ext>)`, désactive les boutons pendant l'upload
+  et retire le marqueur en cas d'échec. Le surlignage de dépôt utilise un
+  `outline` inline (`var(--g-sep)`) : aucune classe Tailwind nouvelle, donc
+  pas de régénération CSS.
+- Rendu : goldmark rend déjà `![alt](url)` ; la règle inline `.md img`
+  (`layout.go`) borne la largeur à la fiche. Les images orphelines ne sont
+  pas supprimées quand une KB disparaît (hors périmètre).
 
 ---
 

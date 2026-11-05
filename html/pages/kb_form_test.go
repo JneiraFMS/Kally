@@ -44,6 +44,27 @@ func TestPageKBEditFieldsConfiguration(t *testing.T) {
 	}
 }
 
+// TestKBEditSharesCreateFieldOptions : toute option ajoutée à la création
+// (rows, mono, Images) se propage à l'édition — les deux listes de champs se
+// dérivent l'une de l'autre, plus de copie qui dérive.
+func TestKBEditSharesCreateFieldOptions(t *testing.T) {
+	for _, source := range kbFormFields {
+		edit, _ := findField(kbEditFieldsFor("KB-0001", nil), source.Nom)
+		if edit == nil {
+			t.Errorf("champ %s absent du formulaire d'édition", source.Nom)
+			continue
+		}
+		if edit.Images != source.Images {
+			t.Errorf("champ %s Images = %v (édition), want %v (création)",
+				source.Nom, edit.Images, source.Images)
+		}
+		if edit.Mono != source.Mono || edit.Rows != source.Rows {
+			t.Errorf("champ %s Mono/Rows = %v/%d (édition), want %v/%d (création)",
+				source.Nom, edit.Mono, edit.Rows, source.Mono, source.Rows)
+		}
+	}
+}
+
 // TestPageKBCreateMarkdownHint : les libellés signalent que Notes et
 // Résolution acceptent le markdown.
 func TestPageKBCreateMarkdownHint(t *testing.T) {

@@ -26,18 +26,21 @@ func kbEditFields(k kb.KB) []elements.ChampFormulaire {
 	return withValues(kbEditFieldsFor(k.ID, nil), kbValues(k))
 }
 
-// kbEditFieldsFor décrit le formulaire d'édition : l'identifiant est en
-// lecture seule (non modifiable), les autres champs partent des valeurs
-// fournies.
+// kbEditFieldsFor décrit le formulaire d'édition : la liste dérive de celle
+// de la création pour que toute option (rows, mono, images collées) reste
+// identique entre les deux formulaires. Seule la lecture de l'identifiant
+// change (champ verrouillé), les autres valeurs partent des valeurs fournies.
 func kbEditFieldsFor(id string, valeurs map[string]string) []elements.ChampFormulaire {
-	base := []elements.ChampFormulaire{
-		{Nom: "id", Type: "text", Label: "Identifiant de la KB :", Valeur: id, LectureSeule: true},
-		{Nom: "erreur", Type: "textarea", Label: "Message d'erreur :", Mono: true, Rows: 8},
-		{Nom: "notes", Type: "textarea", Label: "Notes (markdown) :", Rows: 6},
-		{Nom: "resolution", Type: "textarea", Label: "Résolution (markdown) :", Rows: 6},
-		{Nom: "tags", Type: "text", Label: "Tags (séparés par espace ou virgule) :"},
+	champs := withValues(kbFormFields, valeurs)
+	for i := range champs {
+		if champs[i].Nom != "id" {
+			continue
+		}
+		champs[i].Valeur = id
+		champs[i].Label = "Identifiant de la KB :"
+		champs[i].LectureSeule = true
 	}
-	return withValues(base, valeurs)
+	return champs
 }
 
 // kbValues regroupe les valeurs éditables d'une KB, indexées par name.

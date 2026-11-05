@@ -10,7 +10,10 @@ import (
 	"grz/web"
 )
 
-const kbDataDir = "data/kb"
+const (
+	kbDataDir    = "data/kb"
+	mediaDataDir = "data/media"
+)
 
 func main() {
 	// Root de composition : les dépendances concrètes sont créées ici
@@ -25,10 +28,20 @@ func main() {
 	journalApp := usecases.NewJournalService(journalRepo)
 	journalHandler := web.NewJournalHandler(journalApp)
 
+	// Images collées : stockage content-addressed, servi par un adapter HTTP
+	// dédié (POST /media, GET /media/{name}).
+	mediaRepo := persistence.NewLocalMediaRepository(mediaDataDir)
+	mediaApp := usecases.NewMediaService(mediaRepo)
+	mediaHandler := web.NewMediaHandler(mediaApp)
+
 	mux := http.NewServeMux()
 
 	// Feuille de styles locale (Tailwind généré), embarquée dans le binaire
 	mux.HandleFunc("GET /assets/tailwind.css", web.ServeStylesheet)
+
+	// Images collées dans les notes (markdown)
+	mux.HandleFunc("POST /media", mediaHandler.Upload)
+	mux.HandleFunc("GET /media/{name}", mediaHandler.Serve)
 
 	// Page d'accueil : cartes des KB existantes
 	mux.HandleFunc("GET /{$}", kbHandler.Home)
@@ -58,6 +71,13 @@ func main() {
 		absDir = kbDataDir
 	}
 	log.Printf("Stockage des KB : %s", absDir)
+
+	// Même logique pour les images collées
+	absMediaDir, err := filepath.Abs(mediaDataDir)
+	if err != nil {
+		absMediaDir = mediaDataDir
+	}
+	log.Printf("Stockage des images : %s", absMediaDir)
 
 	// Lancement du serveur : une erreur est fatale et affichée
 	// (ex: port 8080 déjà occupé par une ancienne instance)

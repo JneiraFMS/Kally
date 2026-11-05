@@ -16,6 +16,7 @@ type ChampFormulaire struct {
 	LectureSeule bool   // Champ non modifiable (ex: ID en modification)
 	Mono         bool   // Police monospace (champs de traces / commandes)
 	Rows         int    // Hauteur du textarea (0 → défaut 4 lignes)
+	Images       bool   // Textarea acceptant le collage / dépôt d'images
 }
 
 // inputBaseClass : sans bordure (l'élévation vient du fond), coins arrondis,
@@ -71,6 +72,8 @@ func InputCustom(champ ChampFormulaire) gomponents.Node {
 				gomponents.Attr("rows", strconv.Itoa(rows)),
 				Class(inputClass(champ)),
 				readOnlyAttr(champ),
+				// Marqueur lu par le script de collage (html/pages/image_paste.go).
+				gomponents.If(champ.Images, gomponents.Attr("data-image-paste")),
 				gomponents.Text(champ.Valeur),
 			),
 		)

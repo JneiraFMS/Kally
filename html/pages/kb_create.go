@@ -12,8 +12,8 @@ import (
 var kbFormFields = []elements.ChampFormulaire{
 	{Nom: "id", Type: "text", Label: "Identifiant de la KB (ex: KB-0001) :"},
 	{Nom: "erreur", Type: "textarea", Label: "Message d'erreur :", Mono: true, Rows: 8},
-	{Nom: "notes", Type: "textarea", Label: "Notes (markdown) :", Rows: 6},
-	{Nom: "resolution", Type: "textarea", Label: "Résolution (markdown) :", Rows: 6},
+	{Nom: "notes", Type: "textarea", Label: "Notes (markdown) :", Rows: 6, Images: true},
+	{Nom: "resolution", Type: "textarea", Label: "Résolution (markdown) :", Rows: 6, Images: true},
 	{Nom: "tags", Type: "text", Label: "Tags (séparés par espace ou virgule) :"},
 }
 
@@ -79,6 +79,9 @@ func formPage(currentPath, titre, action string, champs []elements.ChampFormulai
 
 				// Zone où s'affichera la réponse du serveur (htmx)
 				Div(ID("reponse-serveur"), Class("text-g-text font-semibold"), gomponents.Group(reponse)),
+
+				// Collage / glisser-déposer d'images sur les textareas markdown.
+				imagePasteScriptNode(),
 			),
 		),
 	})
