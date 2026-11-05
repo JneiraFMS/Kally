@@ -110,6 +110,51 @@ func TestKBServiceDetailReturnsRelatedKBs(t *testing.T) {
 	}
 }
 
+// TestKBServiceDetailReturnsBacklinksAndKnownIDs : la fiche expose les KB qui
+// la citent avec [[...]] et l'ensemble des IDs connus, nécessaire au rendu
+// des liens morts côté présentation.
+func TestKBServiceDetailReturnsBacklinksAndKnownIDs(t *testing.T) {
+	repo := newFakeRepository()
+	a, err := domainkb.NewKB("KB-1", "", "voir [[KB-2]]", "")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+	b, err := domainkb.NewKB("KB-2", "", "", "")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+	c, err := domainkb.NewKB("KB-3", "", "[[KB-2]] et [[KB-9]]", "")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+	repo.items["KB-1"] = a
+	repo.items["KB-2"] = b
+	repo.items["KB-3"] = c
+	service := NewKBService(repo)
+
+	detail, err := service.Detail(context.Background(), "KB-2")
+	if err != nil {
+		t.Fatalf("Detail() inattendu: %v", err)
+	}
+	if got, want := domainkb.IDs(detail.Backlinks), []string{"KB-1", "KB-3"}; !slices.Equal(got, want) {
+		t.Errorf("Detail().Backlinks = %v, want %v", got, want)
+	}
+	if got, want := detail.KnownIDs, []string{"KB-1", "KB-2", "KB-3"}; !slices.Equal(got, want) {
+		t.Errorf("Detail().KnownIDs = %v, want %v", got, want)
+	}
+	if got, want := domainkb.IDs(detail.Neighbors), []string{"KB-1", "KB-3"}; !slices.Equal(got, want) {
+		t.Errorf("Detail().Neighbors = %v, want %v", got, want)
+	}
+
+	detail, err = service.Detail(context.Background(), "KB-1")
+	if err != nil {
+		t.Fatalf("Detail() inattendu: %v", err)
+	}
+	if len(detail.Backlinks) != 0 {
+		t.Errorf("Detail(KB-1).Backlinks = %v, want vide", domainkb.IDs(detail.Backlinks))
+	}
+}
+
 func TestKBServiceUpdateAndDelete(t *testing.T) {
 	repo := newFakeRepository()
 	repo.items["KB-1"] = domainKB(t, "KB-1", "old")

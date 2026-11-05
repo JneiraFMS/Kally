@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"grz/internal/application/dto"
 	kb "grz/internal/domain/kb"
 
 	"maragu.dev/gomponents"
@@ -139,7 +140,7 @@ func TestPageFramesAlignWithNavbarLogo(t *testing.T) {
 		{name: "accueil", node: PageAccueil("/", []kb.KB{k}, "")},
 		{name: "création", node: PageKBCreate("/kb/new")},
 		{name: "édition", node: PageKBEdit("/kb/edit", k)},
-		{name: "détail", node: PageKBDetail("/kb/detail", k, nil)},
+		{name: "détail", node: PageKBDetail("/kb/detail", dto.KBDetail{KB: k})},
 		{name: "graphe", node: PageKBGraph("/kb/graph", []kb.KB{k})},
 	}
 
@@ -160,7 +161,7 @@ func TestOtherPagesNoNestedAnchors(t *testing.T) {
 	}
 
 	noNestedAnchors(t, renderedPage(t, PageAccueil("/", nil, "")))                   // état vide
-	noNestedAnchors(t, renderedPage(t, PageKBDetail("/kb/detail", kbs[0], kbs[1:]))) // détail
+	noNestedAnchors(t, renderedPage(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: kbs[0], Related: kbs[1:], Neighbors: kbs[1:]}))) // détail
 	noNestedAnchors(t, renderedPage(t, PageKBGraph("/kb/graph", kbs)))               // graphe
 }
 

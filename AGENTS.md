@@ -99,7 +99,8 @@ The exact directory structure may be adapted to the project, but the architectur
 The current implementation keeps those boundaries in these packages:
 
 ```text
-internal/domain/kb                          # KB entity and domain rules
+internal/domain/kb                          # KB entity and domain rules (tags, graph, wiki links)
+internal/domain/wikilink                    # [[cible]] grammar and extraction (pure, no HTML/storage)
 internal/domain/journal                     # journal entry (free markdown, dated — Logseq)
 internal/application/usecases                # KBService and JournalService orchestration
 internal/application/dto                     # application input/output models
@@ -122,6 +123,33 @@ routes: `GET /journal`, `GET /journal/new`, `POST /journal`,
 Persistence formats and filesystem access belong in adapters; domain packages
 must not serialize entities or calculate presentation-specific layout. HTTP
 handlers depend on the inbound application port, never directly on a repository.
+
+### Liens wiki `[[...]]` (Logseq)
+
+Les sections markdown `Notes` et `Résolution` acceptent des liens wiki
+`[[ID]]` (syntaxe stricte : la cible doit être un identifiant KB valide, pas
+d'alias). `Erreur` reste une trace brute, jamais liée.
+
+- `internal/domain/wikilink` : grammaire et extraction pures (`Target`,
+  `ValidTarget`, `Parse`). Les blocs de code fencés, le code inline, les
+  liens échappés (`\[[`) et les cibles invalides sont ignorés ; un lien ne
+  traverse jamais une ligne.
+- `internal/domain/kb/links.go` : `LinkTargets`, `Backlinks`, `Neighbors`,
+  `LinkEdges`. Les **rétroliens sont orientés** : A cite B ⇒ B affiche A,
+  même sans réciprocité. `Neighbors` réunit tag partagé et lien explicite
+  (dans un sens ou l'autre) pour le mini-graphe.
+- Rendu (`html/pages/wikilink.go`) : extension goldmark qui produit
+  directement un nœud `Link` (priorité 150, avant le `LinkParser`). Les IDs
+  connus transitent par le `parser.Context` goldmark, ce qui préserve le
+  pool d'instances `Markdown` et sa sûreté en concurrence. Une cible absente
+  devient un **lien mort** (`a.wikilink-missing`) ouvrant le formulaire de
+  création prérempli (`GET /kb/new?id=...`).
+- Graphe (`html/pages/kb_graph.go`, `kb_local_graph.go`) : `mergedEdges`
+  fusionne arêtes de tags et arêtes de liens explicites en une paire unique ;
+  une arête liée porte `kg-edge kg-edge-link` (accentuée) et un tooltip qui
+  mentionne le lien et/ou les tags partagés.
+- Les liens wiki du journal restent hors périmètre (rétroliens non
+  calculés) ; ils peuvent s'afficher comme liens simples sans résolution.
 
 ---
 

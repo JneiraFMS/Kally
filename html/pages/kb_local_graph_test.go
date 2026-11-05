@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"grz/internal/application/dto"
 	kb "grz/internal/domain/kb"
 )
 
@@ -31,7 +32,7 @@ func TestPageKBDetailLocalGraph(t *testing.T) {
 		mustKB(t, "KB-0003", "Problème connexe", "kpi"),
 	}
 
-	html := renderNode(t, PageKBDetail("/kb/detail", k, related))
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k, Related: related, Neighbors: related}))
 
 	if !strings.Contains(html, `<svg`) {
 		t.Fatalf("le mini-graphe local est absent:\n%s", html)
@@ -65,7 +66,7 @@ func TestPageKBDetailLocalGraphAbsentSansVoisin(t *testing.T) {
 		t.Fatalf("NewKB(): %v", err)
 	}
 
-	html := renderNode(t, PageKBDetail("/kb/detail", k, nil))
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
 
 	if strings.Contains(html, `data-kg="local"`) {
 		t.Errorf("mini-graphe rendu alors qu'il n'y a aucun voisin:\n%s", html)
@@ -84,5 +85,5 @@ func TestPageKBDetailLocalGraphNoNestedAnchors(t *testing.T) {
 		mustKB(t, "KB-0003", "Problème connexe", "kpi"),
 	}
 
-	noNestedAnchors(t, renderNode(t, PageKBDetail("/kb/detail", k, related)))
+	noNestedAnchors(t, renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k, Related: related, Neighbors: related})))
 }

@@ -49,9 +49,17 @@ func (h *KBHandler) List(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, target, http.StatusSeeOther)
 }
 
-// ShowNewForm displays the create form.
+// ShowNewForm displays the create form. A valid ?id= value pre-fills the
+// identifier field, so a missing wiki link [[KB-9999]] opens a ready-to-save
+// form. An invalid identifier is ignored rather than reflected.
 func (h *KBHandler) ShowNewForm(w http.ResponseWriter, r *http.Request) {
-	renderNode(w, pages.PageKBCreate(r.URL.Path))
+	form := pages.FormulaireKB{}
+	if id := strings.TrimSpace(r.URL.Query().Get("id")); id != "" {
+		if err := domainkb.ValidateID(id); err == nil {
+			form.Valeurs = map[string]string{"id": id}
+		}
+	}
+	renderNode(w, pages.PageKBCreateWith(r.URL.Path, form))
 }
 
 // ShowGraph displays the global knowledge-base graph.
@@ -247,7 +255,7 @@ func (h *KBHandler) Detail(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	renderNode(w, pages.PageKBDetail(r.URL.Path, detail.KB, detail.Related))
+	renderNode(w, pages.PageKBDetail(r.URL.Path, detail))
 }
 
 func writeMessage(w http.ResponseWriter, status int, node gomponents.Node) {

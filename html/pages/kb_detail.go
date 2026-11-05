@@ -5,18 +5,23 @@ import (
 	"net/url"
 	"strings"
 
+	"grz/internal/application/dto"
+
 	"maragu.dev/gomponents"
 	. "maragu.dev/gomponents/html"
 )
 
 // PageKBDetail affiche une KB comme une note : titre mono, tags en pills
-// sous le titre, sections séparées par l'espace seul, KB liées.
-func PageKBDetail(currentPath string, k kb.KB, related []kb.KB) gomponents.Node {
+// sous le titre, sections séparées par l'espace seul, références liées et
+// KB liées (tags + liens explicites).
+func PageKBDetail(currentPath string, detail dto.KBDetail) gomponents.Node {
+	k := detail.KB
 	sections := []gomponents.Node{
 		noteSection("Erreur", monoBody(k.Erreur)),
-		noteSection("Notes", mdBody(k.Notes)),
-		noteSection("Résolution", mdBody(k.Resolution)),
-		relatedSection(k, related),
+		noteSection("Notes", mdBody(k.Notes, detail.KnownIDs)),
+		noteSection("Résolution", mdBody(k.Resolution, detail.KnownIDs)),
+		backlinksSection(detail.Backlinks),
+		relatedSection(k, detail.Related, detail.Neighbors),
 	}
 
 	return layout("KB "+k.ID, currentPath, []gomponents.Node{
@@ -121,12 +126,14 @@ func monoBody(texte string) gomponents.Node {
 }
 
 // mdBody rend une section Notes/Résolution comme du markdown sûr (classe
-// « md » pour les styles). Vide → « — vide — ».
-func mdBody(texte string) gomponents.Node {
+// « md » pour les styles). knownIDs résout les liens wiki [[ID]] : nil rend
+// tous les liens existants, une liste active la détection des liens morts.
+// Vide → « — vide — ».
+func mdBody(texte string, knownIDs []string) gomponents.Node {
 	if strings.TrimSpace(texte) == "" {
 		return I(Class("text-g-text"), gomponents.Text("— vide —"))
 	}
-	return mdToNode(texte)
+	return mdToNodeWithKnown(texte, knownIDs)
 }
 
 // noteSection rend une section : petit titre gras + corps. Les sections sont
@@ -138,39 +145,71 @@ func noteSection(titre string, body gomponents.Node) gomponents.Node {
 	)
 }
 
+// backlinksSection liste les KB qui citent celle-ci avec [[...]] (relation
+// orientée : la source n'a pas besoin de citer en retour).
+func backlinksSection(backlinks []kb.KB) gomponents.Node {
+	if len(backlinks) == 0 {
+		return noteSection("Références liées",
+			I(Class("text-g-text"), gomponents.Text("Aucune référence liée")),
+		)
+	}
+
+	var choices []gomponents.Node
+	for _, k := range backlinks {
+		choices = append(choices, kbEntry(k))
+	}
+
+	return noteSection("Références liées",
+		Div(Class("divide-y divide-g-sep"), gomponents.Group(choices)),
+	)
+}
+
+// kbEntry rend une KB dans une liste : lien interne, article ServiceNow et
+// extrait de l'erreur.
+func kbEntry(k kb.KB) gomponents.Node {
+	return Div(Class("py-1.5"),
+		Div(Class("flex items-baseline gap-2"),
+			// Navigation interne bidirectionnelle, conservée.
+			A(Href("/kb/detail?id="+k.ID),
+				Class("font-mono text-g-accent-text font-semibold hover:underline"),
+				gomponents.Text(k.ID),
+			),
+			// Article ServiceNow de la KB liée, en lien secondaire.
+			serviceNowLink(k.ID, "ServiceNow ↗",
+				"text-xs text-g-text hover:text-g-hi hover:underline"),
+		),
+		Div(Class("text-g-text text-xs"), gomponents.Text(firstLine(k.Erreur))),
+	)
+}
+
 // relatedSection liste les KB partageant au moins un tag avec la KB
 // principale (liens bidirectionnels), avec en tête le mini-graphe local de
-// la note (inspiré Logseq) quand il y a au moins un voisin.
-func relatedSection(principal kb.KB, related []kb.KB) gomponents.Node {
-	if len(related) == 0 {
+// la note (inspiré Logseq) quand il y a au moins un voisin. Le mini-graphe
+// réunit les voisins par tag et les liens explicites [[...]].
+func relatedSection(principal kb.KB, related, neighbors []kb.KB) gomponents.Node {
+	if len(related) == 0 && len(neighbors) == 0 {
 		return noteSection("KB liées",
 			I(Class("text-g-text"), gomponents.Text("Aucune KB liée par tag")),
 		)
 	}
 
-	var choices []gomponents.Node
-	for _, k := range related {
-		choices = append(choices,
-			Div(Class("py-1.5"),
-				Div(Class("flex items-baseline gap-2"),
-					// Navigation interne bidirectionnelle, conservée.
-					A(Href("/kb/detail?id="+k.ID),
-						Class("font-mono text-g-accent-text font-semibold hover:underline"),
-						gomponents.Text(k.ID),
-					),
-					// Article ServiceNow de la KB liée, en lien secondaire.
-					serviceNowLink(k.ID, "ServiceNow ↗",
-						"text-xs text-g-text hover:text-g-hi hover:underline"),
-				),
-				Div(Class("text-g-text text-xs"), gomponents.Text(firstLine(k.Erreur))),
-			),
-		)
+	var body []gomponents.Node
+	if len(neighbors) > 0 {
+		body = append(body, localGraph(principal, neighbors))
+	}
+	if len(related) == 0 {
+		body = append(body,
+			I(Class("text-g-text"), gomponents.Text("Aucune KB liée par tag")))
+	} else {
+		var choices []gomponents.Node
+		for _, k := range related {
+			choices = append(choices, kbEntry(k))
+		}
+		body = append(body,
+			Div(Class("divide-y divide-g-sep"), gomponents.Group(choices)))
 	}
 
 	return noteSection("KB liées",
-		Div(Class("space-y-4"),
-			localGraph(principal, related),
-			Div(Class("divide-y divide-g-sep"), gomponents.Group(choices)),
-		),
+		Div(Class("space-y-4"), gomponents.Group(body)),
 	)
 }

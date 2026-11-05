@@ -22,14 +22,14 @@ const localGraphCSS = graphCSS + `
 
 // localGraph rend le mini-graphe d'une note (inspiré Logseq) : la KB
 // au centre (accent), ses voisins placés en cercle, arêtes = tags partagés
-// à l'intérieur du sous-ensemble. Chaque voisin est cliquable vers sa fiche.
-// Sans voisin, la fonction ne retourne rien (la section « KB liées »
-// annonce déjà le vide).
-func localGraph(principal kb.KB, related []kb.KB) gomponents.Node {
-	if len(related) == 0 {
+// et liens explicites [[...]] à l'intérieur du sous-ensemble. Chaque voisin
+// est cliquable vers sa fiche. Sans voisin, la fonction ne retourne rien
+// (la section « KB liées » annonce déjà le vide).
+func localGraph(principal kb.KB, neighbors []kb.KB) gomponents.Node {
+	if len(neighbors) == 0 {
 		return nil
 	}
-	voisins := related
+	voisins := neighbors
 	if len(voisins) > localGraphLimit {
 		voisins = voisins[:localGraphLimit]
 	}
@@ -55,9 +55,9 @@ func localGraph(principal kb.KB, related []kb.KB) gomponents.Node {
 	}
 
 	// Arêtes internes au sous-ensemble (principal ↔ voisins, voisins ↔
-	// voisins) : même relation que le graphe global, portée locale.
+	// voisins) : tags partagés et liens explicites, comme le graphe global.
 	var lines []gomponents.Node
-	for _, e := range kb.GraphEdges(append([]kb.KB{principal}, voisins...)) {
+	for _, e := range mergedEdges(append([]kb.KB{principal}, voisins...)) {
 		a, okA := posOf[e.A]
 		b, okB := posOf[e.B]
 		if !okA || !okB {
@@ -67,8 +67,10 @@ func localGraph(principal kb.KB, related []kb.KB) gomponents.Node {
 			gomponents.El("line",
 				gomponents.Attr("x1", f(a.X)), gomponents.Attr("y1", f(a.Y)),
 				gomponents.Attr("x2", f(b.X)), gomponents.Attr("y2", f(b.Y)),
-				gomponents.Attr("class", "kg-edge"),
-				gomponents.El("title", gomponents.Text(edgeTooltip(e.Tags))),
+				gomponents.Attr("class", edgeClass(e)),
+				gomponents.Attr("data-a", e.A),
+				gomponents.Attr("data-b", e.B),
+				gomponents.El("title", gomponents.Text(edgeTooltip(e))),
 			),
 		)
 	}
@@ -78,7 +80,7 @@ func localGraph(principal kb.KB, related []kb.KB) gomponents.Node {
 		nodes = append(nodes, localNode(n.ID, posOf[n.ID], false))
 	}
 
-	surplus := len(related) - localGraphLimit
+	surplus := len(neighbors) - localGraphLimit
 
 	return gomponents.El("svg",
 		gomponents.Attr("viewBox", "0 0 440 440"),

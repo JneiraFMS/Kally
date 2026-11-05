@@ -123,13 +123,15 @@ func Related(kbs []KB, kb KB) []KB {
 	return related
 }
 
-// GraphEdge est une arête entre deux KB partageant au moins un tag
-// (relation bidirectionnelle : l'ordre A/B est normalisé par ID croissant).
-// Tags contient les tags communs aux deux KB, triés (affichés en tooltip).
+// GraphEdge est une arête entre deux KB (relation non orientée : l'ordre
+// A/B est normalisé par ID croissant). Tags contient les tags communs aux
+// deux KB, triés (affichés en tooltip) ; Linked signale qu'au moins une des
+// deux KB cite explicitement l'autre avec [[...]].
 type GraphEdge struct {
-	A    string
-	B    string
-	Tags []string
+	A      string
+	B      string
+	Tags   []string
+	Linked bool
 }
 
 // GraphEdges retourne les arêtes entre KB partageant au moins un tag,

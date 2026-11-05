@@ -7,6 +7,7 @@ import (
 	"sync"
 	"testing"
 
+	"grz/internal/application/dto"
 	kb "grz/internal/domain/kb"
 )
 
@@ -17,7 +18,7 @@ func markdownDetailHTML(t *testing.T, erreur, notes, resolution string) string {
 	if err != nil {
 		t.Fatalf("NewKB(): %v", err)
 	}
-	return renderNode(t, PageKBDetail("/kb/detail", k, nil))
+	return renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
 }
 
 func BenchmarkMarkdownConversion(b *testing.B) {

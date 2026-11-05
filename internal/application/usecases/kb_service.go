@@ -56,7 +56,13 @@ func (s *KBService) Detail(ctx context.Context, id string) (dto.KBDetail, error)
 	if item == nil {
 		return dto.KBDetail{}, fmt.Errorf("%w: %s", domainkb.ErrNotFound, id)
 	}
-	return dto.KBDetail{KB: *item, Related: domainkb.Related(items, *item)}, nil
+	return dto.KBDetail{
+		KB:        *item,
+		Related:   domainkb.Related(items, *item),
+		Backlinks: domainkb.Backlinks(items, id),
+		Neighbors: domainkb.Neighbors(items, id),
+		KnownIDs:  domainkb.IDs(items),
+	}, nil
 }
 
 // Create validates and persists a new knowledge base, refusing duplicate IDs.
