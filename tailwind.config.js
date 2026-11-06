@@ -1,6 +1,7 @@
 /**
- * Palette Solarized dark de GRZ — source de vérité : html/pages/palette.go
- * (tests : TestTailwindConfigMatchesPalette interdisent la dérive).
+ * Palette Kally (obsidienne/indigo) de GRZ — source de vérité :
+ * html/pages/palette.go (tests : TestTailwindConfigMatchesPalette
+ * interdisent la dérive).
  *
  * La feuille des classes utilisées est générée hors-ligne :
  *   ./tools/build-css.sh  →  web/static/tailwind.css (embarquée via go:embed)
@@ -14,6 +15,14 @@ module.exports = {
 	],
 	theme: {
 		extend: {
+			/* Typographie console : Plus Jakarta Sans (corps), JetBrains Mono
+			 * (identifiants KB/INC, T-codes, compteurs). Les polices sont
+			 * self-hosted (web/assets/fonts via go:embed, @font-face dans
+			 * layout.go) — pas de CDN. */
+			fontFamily: {
+				sans: ['"Plus Jakarta Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+				mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+			},
 			colors: {
 				/* Thème commutable : les tokens pointent les variables CSS
 				 * générées par layout.go (:root dark + [data-theme=light]).
@@ -38,6 +47,7 @@ module.exports = {
 				'g-negative': 'var(--g-negative)',
 				'g-negative-text': 'var(--g-negative-text)',
 				'g-positive': 'var(--g-positive)',
+				'g-positive-text': 'var(--g-positive-text)',
 				'g-ink': 'var(--g-ink)',
 				'g-syn-keyword': 'var(--g-syn-keyword)',
 				'g-syn-string': 'var(--g-syn-string)',

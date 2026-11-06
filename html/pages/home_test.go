@@ -59,7 +59,7 @@ func mustCardKB(t *testing.T, id string, tags ...string) kb.KB {
 
 // TestLayoutInjectsGlancePalette : le thème est chargé depuis la feuille
 // locale /assets/tailwind.css (générée depuis tailwind.config.js qui porte
-// la palette Solarized) : plus de CDN JS (offline, pas de FOUC).
+// la palette obsidienne/indigo) : plus de CDN JS (offline, pas de FOUC).
 func TestLayoutInjectsGlancePalette(t *testing.T) {
 	html := renderedPage(t, layout("T", "/", nil))
 
@@ -74,11 +74,12 @@ func TestLayoutInjectsGlancePalette(t *testing.T) {
 	if strings.Contains(html, "tailwind.config") {
 		t.Errorf("config Tailwind JS runtime encore injectée")
 	}
-	// Style solarisé du body toujours en place
-	for _, hex := range []string{"#002b36", "#93a1a1"} {
-		if !strings.Contains(html, hex) {
-			t.Errorf("couleur Solarized %q absente du style body", hex)
-		}
+	// Style du body consommant les tokens (aucun hex en dur)
+	if !strings.Contains(html, "background-color: var(--g-bg)") {
+		t.Errorf("couleur de fond du body non liée aux tokens")
+	}
+	if !strings.Contains(html, "#0b0f17") {
+		t.Errorf("hex de fond obsidienne du thème sombre absent du style body")
 	}
 }
 
@@ -97,10 +98,10 @@ func TestLayoutBodyStyleSheet(t *testing.T) {
 		t.Fatalf("élément <style> non fermé")
 	}
 	css := html[start : start+end]
-	// Fond Solarized : la feuille inline porte les variables de thème
+	// Fond obsidienne : la feuille inline porte les variables de thème
 	// (:root dark = valeur de référence) et le body les consomme.
-	if !strings.Contains(css, "--g-bg:#002b36") {
-		t.Errorf("le fond Solarized (#002b36) n'est pas déclaré dans les var du thème")
+	if !strings.Contains(css, "--g-bg:#0b0f17") {
+		t.Errorf("le fond obsidienne (#0b0f17) n'est pas déclaré dans les var du thème")
 	}
 	if !strings.Contains(css, "background-color: var(--g-bg)") {
 		t.Errorf("le body ne consomme pas var(--g-bg)")
@@ -165,8 +166,9 @@ func TestOtherPagesNoNestedAnchors(t *testing.T) {
 	noNestedAnchors(t, renderedPage(t, PageKBGraph("/kb/graph", kbs)))                                                              // graphe
 }
 
-// TestPageAccueilDesignMinimal : rayons arrondis (rounded-xl), tags en pills,
-// aucun → décoratif, tags pointant vers le filtre /?tag=xxx.
+// TestPageAccueilDesignMinimal : rayons arrondis (rounded-xl), tags mono
+// discrets (sans pilule épaisse), tag pointant vers /?tag=xxx, action
+// « Consulter → » descend dans le détail.
 func TestPageAccueilDesignMinimal(t *testing.T) {
 	kbs := []kb.KB{mustCardKB(t, "KB06644754", "cc_flow")}
 	html := renderedPage(t, PageAccueil("/", kbs, ""))
@@ -174,27 +176,61 @@ func TestPageAccueilDesignMinimal(t *testing.T) {
 	if !strings.Contains(html, "rounded-xl") {
 		t.Errorf("les cartes doivent utiliser le rayon rounded-xl")
 	}
-	if strings.Contains(html, "→") {
-		t.Errorf("la flèche décorative → doit être retirée")
+	if strings.Count(html, "rounded-full") > 0 {
+		t.Errorf("pas de pilule rounded-full : métadonnées en texte nu (zéro-pill)")
 	}
 	if !strings.Contains(html, "/?tag=cc_flow") {
 		t.Errorf("les tags doivent pointer vers le filtre /?tag=xxx")
 	}
-	if !strings.Contains(html, "rounded-full") {
-		t.Errorf("les tags doivent être des pills (rounded-full)")
+	if !strings.Contains(html, "font-mono") {
+		t.Errorf("identifiants/tags doivent être en mono")
 	}
 }
 
-// TestPageAccueilFiltreTag : le tag actif est affiché avec un moyen de le retirer.
-func TestPageAccueilFiltreTag(t *testing.T) {
-	kbs := []kb.KB{mustCardKB(t, "KB22547", "quantite")}
+// TestPageAccueilToolbar : la barre d'outils de l'accueil est un en-tête de
+// section clair — titre « Bases de connaissances », sous-titre explicatif,
+// et bouton secondaire bordé (mode libre) ; le CTA primaire vit dans la
+// navbar, il n'est pas dupliqué ici.
+func TestPageAccueilToolbar(t *testing.T) {
+	kbs := []kb.KB{mustCardKB(t, "KB06644754", "cc_flow")}
+	html := renderedPage(t, PageAccueil("/", kbs, ""))
+
+	if !strings.Contains(html, "Bases de connaissances") {
+		t.Errorf("titre « Bases de connaissances » absent:\n%s", html)
+	}
+	if !strings.Contains(html, `href="/kb/new/quick"`) {
+		t.Errorf("bouton « Nouvelle KB libre » sans lien")
+	}
+	if !strings.Contains(html, "Nouvelle KB libre") {
+		t.Errorf("libellé « Nouvelle KB libre » absent")
+	}
+}
+
+// TestPageAccueilFiltreTagSegmenté : les tags de filtrage sont des boutons
+// segmentés ; le tag actif est marqué (plein accent + aria-pressed) et
+// pointe vers l'URL SANS lui (retrait) ; les inactifs pointent vers
+// l'URL avec eux (ajout) ; plus de bloc « Filtré par ».
+func TestPageAccueilFiltreTagSegmenté(t *testing.T) {
+	kbs := []kb.KB{
+		mustCardKB(t, "KB22547", "quantite"),
+		mustCardKB(t, "KB06644754", "quantite", "sap"),
+	}
 	html := renderedPage(t, PageAccueil("/", kbs, "quantite"))
 
-	if !strings.Contains(html, "Filtré par") {
-		t.Errorf("le tag de filtre actif n'est pas affiché")
+	if strings.Contains(html, "Filtré par") {
+		t.Errorf("bloc « Filtré par » encore présent (légende : boutons segmentés)")
 	}
-	if !strings.Contains(html, "quantite") {
-		t.Errorf("le nom du tag filtré n'est pas affiché")
+	if !strings.Contains(html, "aria-pressed=\"true\"") {
+		t.Errorf("tag actif sans aria-pressed : l'état n'est pas accessible")
+	}
+	if !strings.Contains(html, `href="/"`) {
+		t.Errorf("retrait du dernier tag actif doit retourner à l'accueil non filtré")
+	}
+	if !strings.Contains(html, `/?tag=quantite&amp;tag=sap`) {
+		t.Errorf("tag inactif « sap » sans href d'ajout (URL combinée, &amp; échappé dans l'attribut)")
+	}
+	if !strings.Contains(html, "quantite") || !strings.Contains(html, "sap") {
+		t.Errorf("libellés de tags absents des segments")
 	}
 }
 

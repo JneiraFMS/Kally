@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -34,6 +35,11 @@ type KB struct {
 	Notes      string
 	Resolution string
 	Tags       []string
+	// Modified est l'heure de dernière modification du fichier source,
+	// alimentée par l'adapter de persistance (stat du .md). Le domaine ne
+	// la sérialise ni ne la consomme : zéro ⇔ non renseignée, et la
+	// présentation n'affiche la date que si elle existe.
+	Modified time.Time
 }
 
 // NewKB valide les champs (ID et tags) puis retourne une KB prête à l'emploi.

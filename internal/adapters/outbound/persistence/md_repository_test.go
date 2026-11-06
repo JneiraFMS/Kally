@@ -62,6 +62,36 @@ func TestMDRepositorySaveThenFindByID(t *testing.T) {
 	}
 }
 
+// TestMDRepositoryPopulatesModifiedTime : le repository alimente le
+// champ Modified (heure de dernière modification du fichier source) — la
+// présentation l'affiche (en-tête de carte, colonne date) ; le domaine ne
+// le sérialise pas : zéro ⇔ non renseigné.
+func TestMDRepositoryPopulatesModifiedTime(t *testing.T) {
+	dir := t.TempDir()
+	repo := NewMDRepository(dir)
+	ctx := context.Background()
+
+	if err := repo.Save(ctx, mustKB(t, "KB-0010", "Erreur A", "Notes B", "Résolution C")); err != nil {
+		t.Fatalf("Save() inattendu: %v", err)
+	}
+
+	got, err := repo.FindByID(ctx, "KB-0010")
+	if err != nil {
+		t.Fatalf("FindByID() inattendu: %v", err)
+	}
+	if got.Modified.IsZero() {
+		t.Errorf("FindByID() : Modified non renseigné (stat du fichier .md attendu)")
+	}
+
+	all, err := repo.FindAll(ctx)
+	if err != nil {
+		t.Fatalf("FindAll() inattendu: %v", err)
+	}
+	if len(all) != 1 || all[0].ID != "KB-0010" || all[0].Modified.IsZero() {
+		t.Errorf("FindAll() = %+v, Modified attendu non zéro", all)
+	}
+}
+
 func TestMDRepositoryFindByIDNotFound(t *testing.T) {
 	repo := NewMDRepository(t.TempDir())
 

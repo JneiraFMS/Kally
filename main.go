@@ -39,6 +39,14 @@ func main() {
 	// Feuille de styles locale (Tailwind généré), embarquée dans le binaire
 	mux.HandleFunc("GET /assets/tailwind.css", web.ServeStylesheet)
 
+	// Polices variables self-hosted (Plus Jakarta Sans, JetBrains Mono) :
+	// typographie complète sans dépendance réseau
+	mux.HandleFunc("GET /assets/fonts/{name}", web.ServeFont)
+
+	// Fragment du tiroir latéral (slide-over) : détail d'une KB injecté
+	// par le script grz-drawer, sans changement de page
+	mux.HandleFunc("GET /kb/panel", kbHandler.Panel)
+
 	// Images collées dans les notes (markdown)
 	mux.HandleFunc("POST /media", mediaHandler.Upload)
 	mux.HandleFunc("GET /media/{name}", mediaHandler.Serve)

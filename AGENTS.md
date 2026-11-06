@@ -168,6 +168,59 @@ d'alias). `Erreur` reste une trace brute, jamais liée.
 - Les liens wiki du journal restent hors périmètre (rétroliens non
   calculés) ; ils peuvent s'afficher comme liens simples sans résolution.
 
+### Drawer latéral + métadonnées dérivées (présentation console)
+
+L'accueil suit le canon « console » (Linear/Raycast docs) : métadonnées en
+texte nu (`KB… · SAP MM · 2026-11-04`, zéro pilule), fiche adaptative,
+vue tableau dense optionnelle et un **drawer slide-over** pour le détail.
+
+- **Métadonnées dérivées** (`html/pages/meta.go` + tests) : `Modified`
+  (`kb.KB`, alimenté par `os.Stat` dans `md_repository.go` — rien n'est
+  sérialisé dans le .md, zéro ⇔ date masquée) ; `moduleSAP(tags)` (tag
+  court alphabétique 2-4 lettres → « SAP MM », tag « sap »/projet ignoré) ;
+  `extractTCodes(text)` (RE2 sans lookahead → frontières vérifiées par
+  `tCodeAtBoundary`, tolère le préfixe `/n`, déduplique, borne à 3) ;
+  `kBTcodes(k)` extrait des sections Notes + Résolution uniquement (la
+  trace `Erreur` reste brute, jamais liée).
+- **Vue tableau dense** (`html/pages/kb_table.go`) : cachée par défaut,
+  bascule client via `data-view-target` + boutons/icônes (aria-pressed,
+  `localStorage grz-view`, script `viewToggleScript`). Les deux vues
+  vivent dans des conteneurs `data-fuzzy-view` (`id="kb-cards"` grid,
+  `id="kb-table"` table, `hidden`) : le moteur fuzzy
+  (`home_search.go`, `inVisibleView` via `closest`) ne compte chaque KB
+  qu'une seule fois, sur la vue visible. Une ligne = `h-9` + hover, ID
+  mono cliquable, colonnes ID/Module/Titre/Tag/T-codes/Date
+  (tabular-nums).
+- **Drawer** (routes, shell et fragment) : `GET /kb/panel?id=` sert le
+  **fragment** `PageKBDetailPanel` (`html/pages/kb_panel.go`,
+  `id="kb-panel"`, jamais layout/nav/doctype) réutilisant les builders de
+  la page détail (addSection/monoBody/mdBody/rétroliens/KB liées — fiche
+  adaptative). Le handler `web.KBHandler.Panel` réutilise
+  `h.app.Detail` : `ValidateID` invalide → 400, inconnu → 404. Le shell
+  (`html/pages/kb_drawer.go`, injecté par `PageAccueil` uniquement quand
+  il y a des cartes) porte le dialogue accessible (`role="dialog"`,
+  `aria-modal`, `aria-label="Détail de la KB"`), l'overlay
+  `#kb-drawer-overlay`, le bouton `#kb-drawer-close` et le corps
+  `#kb-drawer-body` ; fermé par CSS pur (translateX/opacity), ouvert par
+  la classe `.open`. Le script `grz-drawer` fetch le fragment dans
+  `#kb-drawer-body`, ferme (overlay/bouton/Échap) et restitue le focus ;
+  en cas d'échec réseau il retombe sur la navigation native du `href`
+  (`/kb/detail?id=…`). Les ancres des cartes (`kbCard`, lien étendu) et
+  des lignes du tableau portent `data-kb-drawer="<ID>"` + href natif
+  conservé — amélioration progressive, sans JS le détail fonctionne.
+- **« Copier la solution »** (`copySolutionBlock` + `solutionText`) :
+  texte prêt-à-coller ServiceNow (en-tête KB/module, symptôme, contexte,
+  étapes, lien `serviceNowURL`) logé dans une `textarea` cachée ; bouton
+  `data-copy-target`, succès `data-copy-done`, feedback 1500 ms, repli
+  `execCommand`. Le script `grz-copy` (garde-fou `window.grzCopyBound`,
+  idempotent) vit à la fois dans le shell du tiroir ET dans la page
+  détail : les scripts injectés via `innerHTML` ne s'exécutent pas, donc
+  le fragment `kb-panel` embarque lui aussi le script copier pour rester
+  copiable en navigation directe sans tiroir ; le garde-fou rend
+  l'écoute idempotente (jamais de double handler).
+- Bandeau T-codes du fragment : chips mono `/nME22N` (notation logique
+  de session SAP), surface `g-code` + filet `g-border`.
+
 ### Création libre de KB (`/kb/new/quick`)
 
 Deux formulaires de création coexistent, sous-tendus par le même use case
@@ -942,17 +995,30 @@ The styles come from a **locally generated** stylesheet, embedded in the
 binary via `go:embed` (`web/assets.go`, served at `GET /assets/tailwind.css`).
 There is no Tailwind CDN or Node toolchain.
 
-- Source of truth for colors: `html/pages/palette.go` (Solarized constants).
+- Source of truth for colors: `html/pages/palette.go` (Kally tokens —
+  obsidian `#0b0f17` canvas / indigo accents in dark, slate-50 / white in
+  light, echoing Linear/Raycast/Vercel docs).
   `tailwind.config.js` mirrors them — tests (`html/pages/palette_test.go`)
   fail if the two drift apart.
+- Source of truth for typography: Plus Jakarta Sans (body) and JetBrains
+  Mono (IDs `KB…`/`INC…`, SAP T-codes, tabular counters), variable fonts
+  self-hosted in `web/assets/fonts/*.woff2` (`go:embed`, served at
+  `GET /assets/fonts/{name}`, immutable cache). `@font-face` rules and the
+  body font stack live in `layout.go`; `tailwind.config.js` maps
+  `font-sans` / `font-mono` to the same families.
 - Utility classes live inside Go source strings (`html/**`, `web/**`,
   `main.go`), scanned by the content globs in `tailwind.config.js`.
 - **Any change adding or renaming a utility class in Go requires
   regenerating the stylesheet:**
 
   ```bash
-  ./tools/build-css.sh          # one-shot generation (CLI standalone, pinned)
+  ./tools/build-css.sh          # one-shot generation (CLI standalone, pinned) — Linux
   ./tools/build-css.sh --watch  # watch mode during development
+  ```
+
+  ```powershell
+  powershell -File tools/build-css.ps1   # same contract — Windows
+  $env:CSS_WATCH = "1"; ...              # watch mode (PowerShell)
   ```
 
   The script caches the `tailwindcss` standalone CLI (no Node) in
@@ -966,8 +1032,8 @@ There is no Tailwind CDN or Node toolchain.
 ### Theming & Palette (Phases 3–4)
 
 - Colors are **CSS variables** (`--g-*`), generated in the inline `<style>`
-  by `layout.go` (`themeCSSRules`): `:root` = Solarized dark (default),
-  `[data-theme="light"]` = Solarized Light ladder (inverted canon).
+  by `layout.go` (`themeCSSRules`): `:root` = Kally obsidian dark
+  (default), `[data-theme="light"]` = slate/white light ladder.
   `palette.go` holds both maps (`paletteDark`, `paletteLight`) — same token
   set, tests fail on drift (`TestThemePalettes`, `TestLayoutThemeVarRules`).
 - Tailwind tokens in `tailwind.config.js` reference `var(--g-*)`; the theme

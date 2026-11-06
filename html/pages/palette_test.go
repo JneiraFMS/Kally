@@ -19,70 +19,73 @@ var themeTokenNames = []string{
 	"g-bg", "g-widget", "g-block", "g-hover", "g-border", "g-sep",
 	"g-code", "g-accent", "g-accent-dim", "g-accent-text", "g-cyan",
 	"g-hi", "g-text", "g-base", "g-muted", "g-subdue", "g-negative",
-	"g-negative-text", "g-positive", "g-ink",
+	"g-negative-text", "g-positive", "g-positive-text", "g-ink",
 	"g-syn-keyword", "g-syn-string", "g-syn-comment", "g-syn-error",
 }
 
-// wantPaletteValues : valeurs Canonique attendues du thème dark (la base
-// actuelle, Solarized dark) — dérive interdite.
+// wantPaletteValues : valeurs canoniques attendues du thème dark (la base
+// actuelle, palette Kally « console » : obsidienne + indigo) — dérive
+// interdite. Équivalents Tailwind notés en commentaire pour le tuning.
 var wantPaletteValues = map[string]string{
-	"g-bg":            "#002b36",
-	"g-widget":        "#073642",
-	"g-block":         "#12373f",
-	"g-hover":         "#214c56",
-	"g-border":        "#1b444f",
-	"g-sep":           "#28515a",
-	"g-code":          "#24545e",
-	"g-accent":        "#b58900",
-	"g-accent-dim":    "#0c464f",
-	"g-accent-text":   "#d7ad4a",
-	"g-cyan":          "#2aa198",
-	"g-hi":            "#eee8d5",
-	"g-text":          "#93a1a1",
-	"g-base":          "#839496",
-	"g-muted":         "#657b83",
-	"g-subdue":        "#586e75",
-	"g-negative":      "#dc322f",
-	"g-negative-text": "#f08b88",
-	"g-positive":      "#859900",
-	"g-ink":           "#002b36",
+	"g-bg":            "#0b0f17", // bg-slate-950 observe
+	"g-widget":        "#111726", // carte
+	"g-block":         "#151d2e", // bloc surélevé
+	"g-hover":         "#1d2739",
+	"g-border":        "#1e293b", // border-slate-800
+	"g-sep":           "#2a3648",
+	"g-code":          "#0c1120",
+	"g-accent":        "#4f46e5", // bg-indigo-600
+	"g-accent-dim":    "#232347",
+	"g-accent-text":   "#a5b4fc", // text-indigo-300
+	"g-cyan":          "#818cf8", // focus ring (indigo-400)
+	"g-hi":            "#f1f5f9", // text-slate-100
+	"g-text":          "#94a3b8", // text-slate-400
+	"g-base":          "#cbd5e1", // text-slate-300
+	"g-muted":         "#64748b", // text-slate-500 (décoratif)
+	"g-subdue":        "#475569", // text-slate-600 (décoratif)
+	"g-negative":      "#ef4444", // red-500
+	"g-negative-text": "#f87171", // text-red-400
+	"g-positive":      "#10b981", // emerald-500
+	"g-positive-text": "#6ee7b7", // text-emerald-300
 
-	"g-syn-keyword": "#c3d96b",
-	"g-syn-string":  "#7ed3c9",
-	"g-syn-comment": "#b9c6c6",
-	"g-syn-error":   "#f6b0ad",
+	"g-ink": "#ffffff",
+
+	"g-syn-keyword": "#a5b4fc",
+	"g-syn-string":  "#6ee7b7",
+	"g-syn-comment": "#a6b5ca",
+	"g-syn-error":   "#fca5a5",
 }
 
-// wantLightValues : mode clair Solarized Light — échelle inversée canonique
-// (fond base3, textes base01/base00) ; accents identiques au mode sombre ;
-// les 4 tons intermédiaires (block/hover/border/sep) sont des dérivés
-// blanchâtres, à valider par capture d'écran.
+// wantLightValues : mode clair — slate-50 / blanc / indigo-600, accents
+// assombris pour la lisibilité (écho du canon « Vercel docs » clair).
 var wantLightValues = map[string]string{
-	"g-bg":            "#fdf6e3",
-	"g-widget":        "#eee8d5",
-	"g-block":         "#e9e4d0",
-	"g-hover":         "#ded9c2",
-	"g-border":        "#d6d0b9",
-	"g-sep":           "#c8c29f",
-	"g-code":          "#fdf6e3",
-	"g-accent":        "#b58900",
-	"g-accent-dim":    "#f5ecc9",
-	"g-accent-text":   "#7a5c00",
-	"g-cyan":          "#2aa198",
-	"g-hi":            "#073642",
-	"g-text":          "#52686f",
-	"g-base":          "#657b83",
-	"g-muted":         "#839496",
-	"g-subdue":        "#93a1a1",
-	"g-negative":      "#dc322f",
-	"g-negative-text": "#a0211e",
-	"g-positive":      "#859900",
-	"g-ink":           "#002b36",
+	"g-bg":            "#f8fafc",
+	"g-widget":        "#ffffff",
+	"g-block":         "#f1f5f9",
+	"g-hover":         "#e2e8f0",
+	"g-border":        "#e2e8f0",
+	"g-sep":           "#cbd5e1",
+	"g-code":          "#f1f5f9",
+	"g-accent":        "#4f46e5",
+	"g-accent-dim":    "#e0e7ff",
+	"g-accent-text":   "#4338ca",
+	"g-cyan":          "#4f46e5",
+	"g-hi":            "#0f172a",
+	"g-text":          "#475569",
+	"g-base":          "#334155",
+	"g-muted":         "#94a3b8",
+	"g-subdue":        "#cbd5e1",
+	"g-negative":      "#dc2626",
+	"g-negative-text": "#b91c1c",
+	"g-positive":      "#059669",
+	"g-positive-text": "#065f46",
 
-	"g-syn-keyword": "#5c6a00",
-	"g-syn-string":  "#0f6f68",
-	"g-syn-comment": "#52686f",
-	"g-syn-error":   "#a0211e",
+	"g-ink": "#ffffff",
+
+	"g-syn-keyword": "#4338ca",
+	"g-syn-string":  "#047857",
+	"g-syn-comment": "#475569",
+	"g-syn-error":   "#b91c1c",
 }
 
 // TestThemePalettes : les deux palettes couvrent exactement les mêmes
@@ -133,8 +136,8 @@ func TestGeneratedStylesheetUsesVars(t *testing.T) {
 		t.Fatalf("web/static/tailwind.css introuvable (lancer tools/build-css.sh): %v", err)
 	}
 	css := string(data)
-	if strings.Contains(css, "002b36") {
-		t.Errorf("feuille générée avec hex Solarized en dur : le mode clair ne peut pas s'appliquer")
+	if strings.Contains(css, "0b0f17") {
+		t.Errorf("feuille générée avec hex de fond en dur : le mode clair ne peut pas s'appliquer")
 	}
 	for _, rule := range []string{"--g-widget", "var(--g-hi)", ".font-mono", ".hidden"} {
 		if !strings.Contains(css, rule) {
