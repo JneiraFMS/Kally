@@ -146,8 +146,7 @@ func TestLocalKBScriptMergedGridContract(t *testing.T) {
 		"kb-empty",
 		"data-tag-filtered",
 		"grzFuzzyRefresh",
-		// parité carte serveur : heading module, pied « Consulter → »
-		"Consulter →",
+		// parité carte serveur : heading module, pied tags + T-code
 		"afterFirstLine",
 		// parité fiche serveur : clone du panel, Erreur trace brute mono
 		"addLocalSection",

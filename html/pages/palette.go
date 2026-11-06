@@ -9,9 +9,9 @@ package pages
 //
 // Deux thèmes partagent le MÊME jeu de tokens :
 //   en sombre : fond type Dracula (#282a36), cartes #21222c, filets
-//   #44475a, accent pourpre #bd93f9 (encre sombre dessus) ;
+//   #44475a, accent teal #087F8C (encre claire dessus) ;
 //   en clair  : fond quasi-blanc (#fcfcfd), cartes blanches, accents
-//   pourpre/rouge/vert assombris pour tenir 4.5:1.
+//   teal/rouge/vert assombris pour tenir 4.5:1.
 // Décoratif vs texte : g-accent / g-negative / g-positive sont décoratifs
 // (SVG, filets, halos) ; toute COULEUR DE TEXTE passe par les variantes
 // calibrées >= 4.5:1 (g-accent-text, g-negative-text, g-positive-text).
@@ -33,9 +33,9 @@ var paletteDark = ThemeVars{
 	"g-border":        "#44475a", // Border
 	"g-sep":           "#6272a4", // Separator
 	"g-code":          "#17181f", // Code background — couche PLUS PROFONDE que la carte
-	"g-accent":        "#bd93f9", // Purple
-	"g-accent-dim":    "#443653", // Purple muted
-	"g-accent-text":   "#bd93f9", // Purple text
+	"g-accent":        "#087F8C", // Teal (accent de remplissage/bordure)
+	"g-accent-dim":    "#0c3d42", // Teal muted (décoratif)
+	"g-accent-text":   "#2dd6c5", // Teal éclairci (>= 4.5:1 sur les surfaces sombres)
 	"g-cyan":          "#8be9fd", // Cyan
 	"g-hi":            "#f8f8f2", // Foreground
 	"g-text":          "#e0e0e0", // Main text
@@ -46,7 +46,7 @@ var paletteDark = ThemeVars{
 	"g-negative-text": "#ff7d7d", // Light red (>= 4.5:1 sur g-block)
 	"g-positive":      "#50fa7b", // Green
 	"g-positive-text": "#69ff94", // Light green
-	"g-ink":           "#282a36", // Encre sombre sur l'accent pourpre (>= 4.5:1)
+	"g-ink":           "#ffffff", // Encre claire sur l'accent teal (>= 4.5:1)
 	"g-syn-keyword":   "#ff79c6", // Pink
 	"g-syn-string":    "#f1fa8c", // Yellow
 	"g-syn-comment":   "#7c87b8", // Comment éclairci (>= 4.5:1 sur g-code)
@@ -59,14 +59,14 @@ var paletteDark = ThemeVars{
 var paletteLight = ThemeVars{
 	"g-bg":            "#fcfcfd",
 	"g-widget":        "#ffffff",
-	"g-block":         "#f1f0f7",
-	"g-hover":         "#e8e6f0",
-	"g-border":        "#e0deeb",
-	"g-sep":           "#c8c5d8",
-	"g-code":          "#f1f0f7",
-	"g-accent":        "#8657c9", // Pourpre assombri : encre blanche >= 4.5:1
-	"g-accent-dim":    "#eee5ff",
-	"g-accent-text":   "#7044b8",
+	"g-block":         "#F0F7F7",
+	"g-hover":         "#e6eff0",
+	"g-border":        "#e1ebde",
+	"g-sep":           "#c8d8c5",
+	"g-code":          "#f0f7f7",
+	"g-accent":        "#087F8C", // Teal : encre blanche >= 4.5:1
+	"g-accent-dim":    "#d5ecea",
+	"g-accent-text":   "#056a5f", // Teal assombri (>= 4.5:1 sur les surfaces claires)
 	"g-cyan":          "#008fb2",
 	"g-hi":            "#282a36",
 	"g-text":          "#44475a",

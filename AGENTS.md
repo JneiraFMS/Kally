@@ -1068,9 +1068,10 @@ binary via `go:embed` (`web/assets.go`, served at `GET /assets/tailwind.css`).
 There is no Tailwind CDN or Node toolchain.
 
 - Source of truth for colors: `html/pages/palette.go` (Kally tokens —
-  Dracula-flavoured dark `#282a36` canvas / `#21222c` cards / purple
-  `#bd93f9` accents with dark ink on them; near-white `#fcfcfd` canvas /
-  white cards in light, accents deepened for AA). Every text/background
+  Dracula-flavoured dark `#282a36` canvas / `#21222c` cards / teal
+  `#087F8C` accents with light ink on them; near-white `#fcfcfd` canvas /
+  white cards in light, accents deepened for AA — dark text variant
+  `#2dd6c5`, light text variant `#056a5f`). Every text/background
   pair is validated at 4.5:1 by `html/pages/contrast_test.go`.
   `tailwind.config.js` mirrors them — tests (`html/pages/palette_test.go`)
   fail if the two drift apart.

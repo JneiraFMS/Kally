@@ -26,8 +26,8 @@ func sampleKB(t *testing.T, id, tagModule string, modified bool) kb.KB {
 
 // TestKbCardStructure : la carte suit le canon « zéro-pilule » —
 // en-tête mono non encadré `ID · SAP MM · date` (date en tabular-nums à
-// droite), titre line-clamp-2, extrait, pied avec tag cliquable mono,
-// premier T-code et « Consulter → ». Le lien étendu reste le seul moyen de
+// droite), titre line-clamp-2, extrait, pied avec tag cliquable mono et
+// premier T-code. Le lien étendu reste le seul moyen de
 // navigation (pas de <a> imbriqué).
 func TestKbCardStructure(t *testing.T) {
 	html := renderedPage(t, PageAccueil("/", []kb.KB{sampleKB(t, "KB06644754", "mm", true)}, ""))
@@ -60,9 +60,6 @@ func TestKbCardStructure(t *testing.T) {
 	}
 	if !strings.Contains(html, "ME22N") {
 		t.Errorf("T-code SAP dérivé absent du pied de carte")
-	}
-	if !strings.Contains(html, "Consulter") {
-		t.Errorf("action « Consulter » absente")
 	}
 	if !strings.Contains(html, `href="/kb/detail?id=KB06644754"`) {
 		t.Errorf("lien étendu vers le détail absent")

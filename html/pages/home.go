@@ -151,11 +151,11 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 // encadré `ID · Module SAP · date` (séparateur point médian, date en
 // tabular-nums à droite), titre = 1re ligne de l'erreur (line-clamp-2),
 // extrait = lignes suivantes (line-clamp-2), pied : tag principal mono
-// cliquable, premier T-code dérivé et action « Consulter → ». Surface
-// g-widget liseré fin, le survol pousse le liseré vers l'accent.
+// cliquable et premier T-code dérivé. Surface g-widget liseré fin, le
+// survol pousse le liseré vers l'accent.
 // Technique "stretched link" : la carte est un <div> et un lien invisible
-// (<a absolute inset-0>) couvre toute la carte — les éléments cliquables
-// restent au-dessus (relative z-10).
+// (<a absolute inset-0>) couvre toute la carte — le clic entier est le
+// seul moyen de navigation (pas d'affordance textuelle redondante).
 func kbCard(k kb.KB) gomponents.Node {
 	return Div(
 		Class("relative bg-g-widget rounded-xl p-5 border border-g-border hover:border-g-cyan transition-colors"),
@@ -225,8 +225,8 @@ func cardTitleAndExcerpt(k kb.KB) gomponents.Node {
 }
 
 // cardFooter : tag principal (premier de la liste) en chip mono discret
-// cliquable, premier T-code dérivé, action « Consulter → » poussée à
-// droite. Le pied est rendu même sans tag (l'action seule suffit).
+// cliquable et premier T-code dérivé. Le pied est rendu même sans tag
+// (le T-code seul suffit).
 func cardFooter(k kb.KB) gomponents.Node {
 	items := []gomponents.Node{}
 	if len(k.Tags) > 0 {
@@ -237,9 +237,6 @@ func cardFooter(k kb.KB) gomponents.Node {
 			Span(Class("font-mono text-[11px] text-g-text"), gomponents.Text(codes[0])),
 		)
 	}
-	items = append(items,
-		Span(Class("ml-auto text-xs text-g-text"), gomponents.Text("Consulter →")),
-	)
 	return Div(Class("relative z-10 flex flex-wrap items-center gap-2 mt-3"),
 		gomponents.Group(items))
 }

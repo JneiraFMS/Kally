@@ -292,7 +292,7 @@ function renderLocal() {
 
 // Carte locale : clone exact de kbCard (canon console) — heading
 // ID · module · date, titre = 1re ligne de l'Erreur, extrait, pied avec
-// tag principal, premier T-code et action « Consulter → ». Le module et
+// tag principal et premier T-code. Le module et
 // les T-codes viennent du serveur (parse endpoint, mêmes règles Go que les
 // cartes partagées : aucune dérive possible). data-local-entry porte la
 // purge ; l'ancre étirée ouvre la fiche dans le tiroir, comme une carte
@@ -336,7 +336,6 @@ function cardNode(e) {
 	if (tags.length) footer.appendChild(tagChip(tags[0]));
 	var codes = e.parsed.tcodes || [];
 	if (codes.length) footer.appendChild(el("span", "font-mono text-[11px] text-g-text", codes[0]));
-	footer.appendChild(el("span", "ml-auto text-xs text-g-text", "Consulter →"));
 	card.appendChild(footer);
 	return card;
 }

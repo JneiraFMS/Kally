@@ -168,8 +168,8 @@ func TestOtherPagesNoNestedAnchors(t *testing.T) {
 }
 
 // TestPageAccueilDesignMinimal : rayons arrondis (rounded-xl), tags mono
-// discrets (sans pilule épaisse), tag pointant vers /?tag=xxx, action
-// « Consulter → » descend dans le détail.
+// discrets (sans pilule épaisse), tag pointant vers /?tag=xxx — le lien
+// étendu (toute la carte) est le seul déclencheur de navigation.
 func TestPageAccueilDesignMinimal(t *testing.T) {
 	kbs := []kb.KB{mustCardKB(t, "KB06644754", "cc_flow")}
 	html := renderedPage(t, PageAccueil("/", kbs, ""))

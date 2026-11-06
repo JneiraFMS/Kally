@@ -24,7 +24,7 @@ var themeTokenNames = []string{
 }
 
 // wantPaletteValues : valeurs canoniques attendues du thème dark (la base
-// actuelle : fond type Dracula, cartes #21222c, accent pourpre #bd93f9) —
+// actuelle : fond type Dracula, cartes #21222c, accent teal #087F8C) —
 // dérive interdite. g-code est une couche PLUS PROFONDE que la carte ;
 // g-negative-text / g-ink / g-syn-comment sont les variantes calibrées
 // AA (>= 4.5:1) de leurs tons bruts.
@@ -36,9 +36,9 @@ var wantPaletteValues = map[string]string{
 	"g-border":        "#44475a", // filet
 	"g-sep":           "#6272a4", // separator
 	"g-code":          "#17181f", // code : couche profonde
-	"g-accent":        "#bd93f9", // Purple
-	"g-accent-dim":    "#443653", // Purple muted
-	"g-accent-text":   "#bd93f9", // Purple text
+	"g-accent":        "#087F8C", // Teal
+	"g-accent-dim":    "#0c3d42", // Teal muted
+	"g-accent-text":   "#2dd6c5", // Teal éclairci AA sur surfaces sombres
 	"g-cyan":          "#8be9fd", // focus ring
 	"g-hi":            "#f8f8f2", // Foreground
 	"g-text":          "#e0e0e0", // Main text
@@ -50,7 +50,7 @@ var wantPaletteValues = map[string]string{
 	"g-positive":      "#50fa7b", // Green
 	"g-positive-text": "#69ff94", // Light green
 
-	"g-ink": "#282a36", // encre sombre sur l'accent pourpre (AA)
+	"g-ink": "#ffffff", // encre claire sur l'accent teal (AA)
 
 	"g-syn-keyword": "#ff79c6",
 	"g-syn-string":  "#f1fa8c",
@@ -68,9 +68,9 @@ var wantLightValues = map[string]string{
 	"g-border":        "#e0deeb",
 	"g-sep":           "#c8c5d8",
 	"g-code":          "#f1f0f7",
-	"g-accent":        "#8657c9", // pourpre assombri : encre blanche AA
-	"g-accent-dim":    "#eee5ff",
-	"g-accent-text":   "#7044b8",
+	"g-accent":        "#087F8C", // teal : encre blanche AA
+	"g-accent-dim":    "#d5ecea",
+	"g-accent-text":   "#056a5f",
 	"g-cyan":          "#008fb2",
 	"g-hi":            "#282a36",
 	"g-text":          "#44475a",
