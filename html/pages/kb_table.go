@@ -44,7 +44,9 @@ func kbTable(kbs []kb.KB) gomponents.Node {
 		// Surface carte : cadre arrondi bordé, en-têtes sur fond bloc,
 		// cellules qui respirent (px-4) — densité conservée (h-9, text-xs).
 		Div(Class("overflow-hidden rounded-xl border border-g-border bg-g-widget"),
-			Table(Class("w-full text-sm border-collapse text-left"),
+			// ID de la table : ancre d'injection des lignes d'articles
+			// locaux (grz-local) à côté des lignes KB partagées.
+			Table(ID("kb-table-rows"), Class("w-full text-sm border-collapse text-left"),
 				THead(
 					Tr(
 						Class("bg-g-block border-b border-g-border"),

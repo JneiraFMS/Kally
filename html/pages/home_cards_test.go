@@ -152,12 +152,15 @@ func TestKbTableDenseView(t *testing.T) {
 	}
 }
 
-// TestKbTableSansKB : sans carte, ni tableau ni script de bascule.
+// TestKbTableSansKB : sans carte, ni tableau ni script de bascule. La
+// barre grz-local mentionne l'ancre d'injection du tableau côté script
+// (élément légitime de la bibliothèque locale) : on porte la vérification
+// sur l'élément rendu, pas sur la sous-chaîne.
 func TestKbTableSansKB(t *testing.T) {
 	var kbs []kb.KB
 	html := renderedPage(t, PageAccueil("/", kbs, ""))
 
-	if strings.Contains(html, "kb-table") || strings.Contains(html, "grz-view") {
+	if strings.Contains(html, `id="kb-table"`) || strings.Contains(html, "grz-view") {
 		t.Errorf("vue tableau/script de bascule rendus alors qu'aucune carte n'existe")
 	}
 }

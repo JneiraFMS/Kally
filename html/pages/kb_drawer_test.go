@@ -8,6 +8,19 @@ import (
 	kb "grz/internal/domain/kb"
 )
 
+// TestDrawerScriptParsesAsJavaScript : les séquences `\t` littérales dans
+// la chaîne brute rendent le script invalide (SyntaxError en console, le
+// tiroir rebasculait silencieusement en navigation native). Le script
+// doit s'indenter de vraies tabulations.
+func TestDrawerScriptParsesAsJavaScript(t *testing.T) {
+	if strings.Contains(drawerScript, "\\t") {
+		t.Errorf("drawerScript contient des séquences \\t littérales : JS invalide")
+	}
+	if strings.Contains(drawerScript, "\\n") {
+		t.Errorf("drawerScript contient des séquences \\n littérales : JS invalide")
+	}
+}
+
 // sampleDetail construit un dto.KBDetail réaliste pour les tests de fragment.
 func sampleDetail(t *testing.T, resolution string) dto.KBDetail {
 	t.Helper()

@@ -39,6 +39,10 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 	for _, k := range kbs {
 		cards = append(cards, kbCard(k))
 	}
+	// Normalisation défensive (production déjà normalisée par l'adapter) :
+	// des valeurs vides/interdites doivent rester sémantiquement « sans filtre ».
+	filtreTags = kb.NormalizeTagFilter(filtreTags)
+	hasFiltre := len(filtreTags) > 0
 
 	// Barre d'outils : titre de section + CTA secondaire bordé (mode
 	// libre). Le CTA primaire « Créer une KB » vit dans la navbar.
@@ -73,7 +77,7 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 	}
 
 	switch {
-	case len(kbs) == 0 && len(filtreTags) > 0:
+	case len(kbs) == 0 && hasFiltre:
 		// Aucune KB pour ces tags : invitation à voir toutes les KB
 		content = append(content,
 			Div(Class("max-w-5xl mx-auto px-6 pb-8"),
@@ -85,7 +89,9 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 		)
 	case len(kbs) == 0:
 		content = append(content,
-			Div(Class("max-w-5xl mx-auto px-6 pb-8"),
+			// état vide togglé par grz-local : des articles locaux font
+			// disparaître « Aucune KB enregistrée ».
+			Div(ID("kb-empty"), Class("max-w-5xl mx-auto px-6 pb-8"),
 				Div(Class("bg-g-widget rounded-xl p-10 text-center space-y-2"),
 					P(Class("text-g-text"), gomponents.Text("Aucune KB enregistrée.")),
 					A(Href("/kb/new"), Class("text-g-text hover:text-g-hi hover:underline"), gomponents.Text("Créer une première KB")),
@@ -96,29 +102,47 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 		content = append(content,
 			// Bascule de vue (cartes/tableau), conteneurs distincts du
 			// moteur fuzzy (comptage par vue visible), grille puis tableau.
+			// Le SCRIPT de bascule est injecté plus bas, après la grille :
+			// exécuté au parsing, il ne la verrait pas sinon.
 			Div(Class("max-w-5xl mx-auto px-6 pb-8 flex justify-end gap-1.5"),
 				viewToggleButtons(),
 			),
-			Div(ID("kb-cards"),
-				Class("max-w-5xl mx-auto px-6 pb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"),
-				gomponents.Attr("data-fuzzy-view", "grid"),
-				gomponents.Group(cards),
-			),
 			kbTable(kbs),
-			viewToggleScriptNode(),
 		)
 	}
 
-	// État « aucun résultat » togglé par le script, et scripts (fuzzy + le
-	// tiroir latéral + bascule de vue) injectés seulement quand il y a des
-	// cartes à filtrer/ouvrir — le shell du tiroir comprend ses scripts.
+	// Grille des cartes : toujours rendue (même vide) — les articles
+	// locaux de la bibliothèque FSA s'invitent à côté des KB partagées.
+	// Un filtre actif suspend l'injection (les tags locaux ne sont pas
+	// filtrables, le résultat resterait trompeur).
+	content = append(content,
+		Div(ID("kb-cards"),
+			Class("max-w-5xl mx-auto px-6 pb-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"),
+			gomponents.Attr("data-fuzzy-view", "grid"),
+			gomponents.If(hasFiltre, gomponents.Attr("data-tag-filtered", "1")),
+			gomponents.Group(cards),
+		),
+	)
+
+	// État « aucun résultat » togglé par le script, recherche fuzzy et
+	// bascule de vue — injectés APRÈS la grille, qu'ils doivent trouver
+	// dans le DOM au moment de s'exécuter.
 	if hasKBs {
 		content = append(content,
 			noResultsBlock("kb-no-results", "max-w-5xl mx-auto px-6 pb-8"),
 			searchScriptNode(),
-			drawerShell(),
+			viewToggleScriptNode(),
 		)
 	}
+
+	// Barre des articles locaux (grz-local) : connexion et état, en pied
+	// de page — discrète, cachée par défaut (révélée seulement sur
+	// navigateur compatible). Les cartes locales, elles, s'invitent dans
+	// la grille partagée ci-dessus.
+	// Shell du tiroir AVANT la barre : le script grz-local s'exécute au
+	// parsing et capture les éléments du tiroir — le shell doit exister
+	// avant lui (les fiches locales s'y ouvrent).
+	content = append(content, drawerShell(), PageLocalBar())
 
 	return layout("Kally - Bases de connaissances", currentPath, content)
 }

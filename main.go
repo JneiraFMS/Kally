@@ -34,6 +34,12 @@ func main() {
 	mediaApp := usecases.NewMediaService(mediaRepo)
 	mediaHandler := web.NewMediaHandler(mediaApp)
 
+	// Bibliothèque locale (File System Access) : le serveur ne persiste
+	// rien — il fournit des transformations sans état (sérialiser, analyser,
+	// rendre) autour du codec kbfile ; l'écriture des fichiers .md vit dans
+	// le navigateur, dans le dossier choisi par l'utilisateur.
+	kbLocalHandler := web.NewKBLocalHandler(kbApp)
+
 	mux := http.NewServeMux()
 
 	// Feuille de styles locale (Tailwind généré), embarquée dans le binaire
@@ -50,6 +56,12 @@ func main() {
 	// Images collées dans les notes (markdown)
 	mux.HandleFunc("POST /media", mediaHandler.Upload)
 	mux.HandleFunc("GET /media/{name}", mediaHandler.Serve)
+
+	// Bibliothèque locale : transformations sans état consommées par le
+	// script grz-local (aucune persistance serveur derrière ces POST).
+	mux.HandleFunc("POST /kb/local/serialize", kbLocalHandler.Serialize)
+	mux.HandleFunc("POST /kb/local/parse", kbLocalHandler.Parse)
+	mux.HandleFunc("POST /kb/local/render", kbLocalHandler.Render)
 
 	// Page d'accueil : cartes des KB existantes
 	mux.HandleFunc("GET /{$}", kbHandler.Home)

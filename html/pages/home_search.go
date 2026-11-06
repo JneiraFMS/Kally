@@ -5,6 +5,13 @@ import (
 	. "maragu.dev/gomponents/html"
 )
 
+// Ordre DOM garanti : les scripts (fuzzy, bascule de vue, grz-local) sont
+// injectés APRÈS les éléments qu'ils pilotent — un script s'exécutant au
+// parsing ne voit pas un élément placé après lui dans le document
+// (régression observée : la bascule cartes/tableau mourait quand la
+// grille était rendue après le script). Voir
+// TestViewToggleScriptComesAfterGrid.
+//
 // fuzzyScript est le moteur de recherche fuzzy 100 % client, partagé par
 // toutes les pages qui en déclarent un (accueil : cartes de KB ; journal :
 // entrées listées). Le filtrage porte sur l'attribut data-search local,
@@ -141,6 +148,12 @@ input.addEventListener("keydown", function (e) {
 });
 
 input.addEventListener("input", run);
+
+// Cartes injectées dynamiquement après chargement (bibliothèque locale
+// grz-local) : re-scan complet des [data-search] puis refiltrage immédiat.
+// Le hook reste undefined quand la page n'a pas de recherche (aucune KB
+// partagée) : le script local ne l'appelle que s'il existe.
+window.grzFuzzyRefresh = function () { cards = null; run(); };
 })();`
 
 const viewToggleScript = `/* grz-view */

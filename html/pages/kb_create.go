@@ -42,10 +42,12 @@ func PageKBCreate(currentPath string) gomponents.Node {
 }
 
 // PageKBCreateWith affiche le formulaire de création en conservant les
-// valeurs saisies et le message de validation (flux sans JavaScript).
+// valeurs saisies et le message de validation (flux sans JavaScript). La
+// bascule d'enregistrement local permet de viser le dossier utilisateur
+// (script grz-local) au lieu du serveur.
 func PageKBCreateWith(currentPath string, form FormulaireKB) gomponents.Node {
 	return kbFormPage(currentPath, "Créer une KB", "/kb",
-		withValues(kbFormFields, form.Valeurs), form.Message)
+		withValues(kbFormFields, form.Valeurs), form.Message, LocalSaveToggle())
 }
 
 // PageKBCreateQuick affiche le formulaire de création libre : identifiant
@@ -55,10 +57,11 @@ func PageKBCreateQuick(currentPath string) gomponents.Node {
 }
 
 // PageKBCreateQuickWith ré-affiche le formulaire libre en conservant les
-// valeurs saisies et le message de validation (flux sans JavaScript).
+// valeurs saisies et le message de validation (flux sans JavaScript). La
+// bascule d'enregistrement local est également proposée.
 func PageKBCreateQuickWith(currentPath string, form FormulaireKB) gomponents.Node {
 	return kbFormPage(currentPath, "Nouvelle KB libre", "/kb/quick",
-		withValues(kbQuickFormFields, form.Valeurs), form.Message)
+		withValues(kbQuickFormFields, form.Valeurs), form.Message, LocalSaveToggle())
 }
 
 // withValues retourne une copie des champs où les valeurs fournies
@@ -79,15 +82,17 @@ func withValues(base []elements.ChampFormulaire, valeurs map[string]string) []el
 
 // kbFormPage assemble une page de formulaire de KB : titre, formulaire et
 // zone de réponse (message éventuel). Partagé par la création et l'édition
-// pour que les deux formulaires restent identiques.
-func kbFormPage(currentPath, titre, action string, champs []elements.ChampFormulaire, message gomponents.Node) gomponents.Node {
-	return formPage(currentPath, titre, action, champs, message)
+// pour que les deux formulaires restent identiques ; les nœuds extra
+// (variadiques) portent la bascule d'enregistrement local (création
+// seulement, jamais l'édition d'une KB partagée).
+func kbFormPage(currentPath, titre, action string, champs []elements.ChampFormulaire, message gomponents.Node, extra ...gomponents.Node) gomponents.Node {
+	return formPage(currentPath, titre, action, champs, message, extra...)
 }
 
 // formPage assemble une page de formulaire générique (KB comme journal) :
 // titre, formulaire pointant vers action (POST natif + htmx) et zone de
 // réponse où s'affiche le message du serveur.
-func formPage(currentPath, titre, action string, champs []elements.ChampFormulaire, message gomponents.Node) gomponents.Node {
+func formPage(currentPath, titre, action string, champs []elements.ChampFormulaire, message gomponents.Node, extra ...gomponents.Node) gomponents.Node {
 	var reponse []gomponents.Node
 	if message != nil {
 		reponse = append(reponse, message)
@@ -98,7 +103,7 @@ func formPage(currentPath, titre, action string, champs []elements.ChampFormulai
 			Div(Class("max-w-2xl space-y-5"),
 				H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text(titre)),
 
-				elements.FormCustomWithAction(champs, action, "Enregistrer"),
+				elements.FormCustomWithActionExtra(champs, action, "Enregistrer", extra...),
 
 				// Zone où s'affichera la réponse du serveur (htmx)
 				Div(ID("reponse-serveur"), Class("text-g-text font-semibold"), gomponents.Group(reponse)),

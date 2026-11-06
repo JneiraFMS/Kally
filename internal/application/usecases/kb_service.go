@@ -9,6 +9,7 @@ import (
 	"grz/internal/application/ports/inbound"
 	"grz/internal/application/ports/outbound"
 	domainkb "grz/internal/domain/kb"
+	"grz/internal/kbfile"
 )
 
 // KBService orchestrates knowledge-base use cases through the repository port.
@@ -99,6 +100,43 @@ func (s *KBService) Update(ctx context.Context, input dto.KBInput) (domainkb.KB,
 // Delete removes a knowledge base by ID.
 func (s *KBService) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
+}
+
+// SerializeLocal validates the input (same domain rules as a shared KB) and
+// returns the canonical .md content, ready to be written by the client
+// script into the user's local library folder. No server persistence, and
+// no uniqueness check: local and shared worlds are watertight.
+func (s *KBService) SerializeLocal(input dto.KBInput) (string, error) {
+	item, err := toDomain(input)
+	if err != nil {
+		return "", err
+	}
+	return kbfile.Serialize(item), nil
+}
+
+// ParseLocal analyzes the .md content of a file read from the local
+// library. The fields come back disaggregated for the form and the client
+// detail card; the ID is provided by the file name.
+func (s *KBService) ParseLocal(raw string) (dto.KBParsed, error) {
+	item := kbfile.Parse("", raw)
+	return dto.KBParsed{
+		Erreur:     item.Erreur,
+		Notes:      item.Notes,
+		Resolution: item.Resolution,
+		Tags:       item.Tags,
+	}, nil
+}
+
+// LocalKnownIDs exposes the IDs of shared KBs, used to render [[...]] wiki
+// links of a local file (a link targeting a shared ID points to the detail
+// page; otherwise it becomes a dead link). Local files never enter this
+// set: the two worlds remain watertight.
+func (s *KBService) LocalKnownIDs(ctx context.Context) ([]string, error) {
+	items, err := s.repo.FindAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return domainkb.IDs(items), nil
 }
 
 func toDomain(input dto.KBInput) (domainkb.KB, error) {

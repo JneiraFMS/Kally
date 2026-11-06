@@ -103,12 +103,13 @@ internal/domain/kb                          # KB entity and domain rules (tags, 
 internal/domain/wikilink                    # [[cible]] grammar and extraction (pure, no HTML/storage)
 internal/domain/journal                     # journal entry (free markdown, dated — Logseq)
 internal/domain/media                       # pasted-image rules (formats, size, content-addressed names)
+internal/kbfile                             # canonical KB file format codec (Serialize/Parse, shared by server repo and local library)
 internal/application/usecases                # KBService, JournalService and MediaService orchestration
 internal/application/dto                     # application input/output models
 internal/application/ports/{inbound,outbound} # application contracts
 internal/adapters/outbound/persistence       # Markdown + media file repositories
-web                                          # inbound HTTP adapters (kb_handler, journal_handler, media_handler)
-html/pages                                   # HTML presentation adapter (incl. image_paste.go script)
+web                                          # inbound HTTP adapters (kb_handler, journal_handler, media_handler, kb_local_handler)
+html/pages                                   # HTML presentation adapter (incl. image_paste.go / local_kb.go scripts)
 main.go                                      # dependency composition root
 ```
 
@@ -239,6 +240,80 @@ Deux formulaires de création coexistent, sous-tendus par le même use case
   re-rendent `PageKBCreateQuickWith` (jamais le formulaire complet).
 - Accueil : bouton secondaire « Nouvelle KB libre » à côté de « Créer une
   KB » (`html/pages/home.go`).
+
+### Bibliothèque locale (File System Access, mondes étanches)
+
+Chaque utilisateur de l'app hébergée (le serveur central) peut enregistrer
+des articles en **vrais fichiers `.md`** dans un dossier **de sa propre
+machine**, consultables uniquement par lui. Monde **étanche** : une fiche
+locale n'apparaît jamais dans les listes, le graphe ou les rétroliens du
+serveur ; un fichier local peut en revanche câbler un wikilink vers une ID
+partagée (lien vivant vers la fiche serveur, lien mort sinon). Aucun
+compte utilisateur : l'isolation vient du poste/navigateur, pas du serveur.
+
+- **Un seul codec** : le format fichier (`# ID`, front matter `tags:`,
+  sections `## Erreur` / `## Notes` / `## Résolution`, échappement
+  `\##`) vit dans `internal/kbfile` (`Serialize`, `Parse`,
+  `escapeUserHeadings`). Le dépôt serveur (`md_repository.go`) comme les
+  cas d'usage du local consomment ce package : aucune réimplémentation
+  client ne peut dériver du format canonique.
+- **Cas d'usage sans état** (`KBService` + port `inbound.KBApplication`) :
+  `SerializeLocal` (validation domaine → contenu .md canonique),
+  `ParseLocal` (fichier → champs éclatés), `LocalKnownIDs` (IDs partagés
+  pour le rendu des wikilinks). Le serveur ne persiste **jamais** le
+  périmètre local.
+- **Adaptateur HTTP** `web/kb_local_handler.go` : `POST /kb/local/serialize`
+  (form → `text/markdown`, 400 si validation refuse), `POST /kb/local/parse`
+  (corps brut → JSON : champs éclatés **plus les dérivations serveur**
+  `module` et `tcodes`, calculées par `pages.ModuleSAPFor` /
+  `pages.TCodesFor` — les mêmes règles Go que les cartes partagées, aucune
+  réimplémentation client), `POST /kb/local/render` (contrat JSON
+  `{notes, resolution}` → `{notesHTML, resolutionHTML}` via la pipeline
+  goldmark partagée, IDs partagés fournis par `LocalKnownIDs` ;
+  `pages.RenderMarkdownHTML` — l'Erreur n'emprunte jamais ce pipeline :
+  trace brute rendue en mono côté client).
+- **Script client** `html/pages/local_kb.go` (`grz-local`, injecté dans la
+  barre locale de l'accueil et sous les formulaires de création — jamais
+  dans le journal ni à l'édition partagée) : connexion du dossier
+  (`showDirectoryPicker`, handle `readwrite` persisté dans IndexedDB
+  `grz-local-kb`, `queryPermission` à chaque session — reconnexion
+  explicite par clic, jamais silencieuse), index des `<id>.md` (hors
+  `journal-<date>.md`), **injection DANS la grille partagée** `#kb-cards`
+  (rendue toujours, même vide) et dans la vue tableau `#kb-table-rows` :
+  les articles locaux s'affichent AVEC les KB partagées, comptés dans
+  « n/total » du moteur fuzzy (re-scan via `window.grzFuzzyRefresh`) ;
+  **carte locale = clone exact de `kbCard`** (heading `ID · module · date`
+  avec module/T-codes dérivés par le serveur, titre = 1re ligne de
+  l'Erreur, extrait borné à 140, tag principal + premier T-code +
+  « Consulter → » dans le pied) et **ligne tableau = clone de
+  `kbTableRow`** ; purge de l'injection précédente via `data-local-entry`,
+  bascule de l'état vide via `#kb-empty` ; un filtre tag actif
+  (`data-tag-filtered` posé par `PageAccueil`) suspend l'injection (les
+  tags locaux ne sont pas filtrables) ; **fiche locale = clone de
+  `PageKBDetailPanel`** dans le tiroir (bandeau `ID · module · date`,
+  chips T-codes `/n`, Erreur trace brute mono, Notes/Résolution rendues,
+  fiche adaptative, actions **Modifier** (préremplissage via
+  `/kb/local/parse` + `?local=1&id=…`) et **Supprimer**
+  (`dir.removeEntry`) **vit uniquement dans la fiche**, comme côté
+  serveur) ;
+  **ordre DOM garanti** : le shell du tiroir est rendu AVANT la barre
+  (`drawerShell()` puis `PageLocalBar()` dans `PageAccueil`) — le script
+  s'exécute au parsing et ouvre les fiches dans le tiroir ; de plus la
+  capture des éléments du tiroir est PARESSEUSE (`drawerRoots()`
+  re-résolus à chaque usage, régression d'ordre déjà vue) ;
+  les scripts ne s'exécutent pas via innerHTML, le câblage des boutons
+  copier vit dans `bindCodeCopy` ; interception en capture du submit
+  (`preventDefault` + `stopPropagation` devant htmx) quand la case
+  `#kb-local-save` est cochée, écriture via `createWritable`.
+- **Amélioration progressive** : la barre locale est rendue `hidden`
+  côté serveur ; le script ne la révèle que si `window.showDirectoryPicker`
+  existe (Chrome/Edge). Sans JavaScript ou avec Firefox/Safari,
+  l'application est inchangée.
+- **Limites v1 assumées** : les images collées restent servies par le
+  serveur (`/media/<hash>`) — hors ligne, elles tombent ; la ligne
+  tableau locale affiche « — » quand module/T-code ne sont pas
+  dérivables (même comportement qu'une carte serveur sans module) ;
+  l'unicité d'ID tient par monde (étanche), pas à travers les deux.
 
 ### Recherche fuzzy partagée (`data-fuzzy`)
 

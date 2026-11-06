@@ -15,4 +15,10 @@ type KBApplication interface {
 	Create(ctx context.Context, input dto.KBInput) (domainkb.KB, error)
 	Update(ctx context.Context, input dto.KBInput) (domainkb.KB, error)
 	Delete(ctx context.Context, id string) error
+	// Local library (File System Access): stateless transformations — the
+	// server never persists locally; it serializes/analyzes and exposes its
+	// shared IDs for rendering wiki links.
+	SerializeLocal(input dto.KBInput) (string, error)
+	ParseLocal(raw string) (dto.KBParsed, error)
+	LocalKnownIDs(ctx context.Context) ([]string, error)
 }

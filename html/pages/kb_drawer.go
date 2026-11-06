@@ -82,49 +82,49 @@ if (!drawer || !body || !overlay || !closeBtn) return;
 var lastTrigger = null;
 
 function openDrawer(trigger) {
-\tlastTrigger = trigger || null;
-\tbody.scrollTop = 0;
-\toverlay.classList.add("open");
-\tdrawer.classList.add("open");
-\tcloseBtn.focus();
-\t// verrouille le défilement de la page derrière le tiroir
-\tdocument.body.style.overflow = "hidden";
+	lastTrigger = trigger || null;
+	body.scrollTop = 0;
+	overlay.classList.add("open");
+	drawer.classList.add("open");
+	closeBtn.focus();
+	// verrouille le défilement de la page derrière le tiroir
+	document.body.style.overflow = "hidden";
 }
 
 function closeDrawer() {
-\tif (!drawer.classList.contains("open")) return;
-\toverlay.classList.remove("open");
-\tdrawer.classList.remove("open");
-\tdocument.body.style.overflow = "";
-\tbody.innerHTML = "";
-\tif (lastTrigger) lastTrigger.focus();
+	if (!drawer.classList.contains("open")) return;
+	overlay.classList.remove("open");
+	drawer.classList.remove("open");
+	document.body.style.overflow = "";
+	body.innerHTML = "";
+	if (lastTrigger) lastTrigger.focus();
 }
 
 // Ouverture : chaque ancre data-kb-drawer fetch son fragment ; en cas
 // d'échec (hors-ligne, serveur indisponible), la navigation native du
 // href reste la porte de secours.
 document.addEventListener("click", function (e) {
-\tvar anchor = e.target.closest("a[data-kb-drawer]");
-\tif (!anchor) return;
-\te.preventDefault();
-\tvar id = anchor.getAttribute("data-kb-drawer");
-\tfetch("/kb/panel?id=" + encodeURIComponent(id), { headers: { "Accept": "text/html" } })
-\t\t.then(function (res) {
-\t\t\tif (!res.ok) throw new Error("status " + res.status);
-\t\t\treturn res.text();
-\t\t})
-\t\t.then(function (html) {
-\t\t\tbody.innerHTML = html;
-\t\t\topenDrawer(anchor);
-\t\t})
-\t\t.catch(function () {
-\t\t\tlocation.href = anchor.getAttribute("href");
-\t\t});
+	var anchor = e.target.closest("a[data-kb-drawer]");
+	if (!anchor) return;
+	e.preventDefault();
+	var id = anchor.getAttribute("data-kb-drawer");
+	fetch("/kb/panel?id=" + encodeURIComponent(id), { headers: { "Accept": "text/html" } })
+		.then(function (res) {
+			if (!res.ok) throw new Error("status " + res.status);
+			return res.text();
+		})
+		.then(function (html) {
+			body.innerHTML = html;
+			openDrawer(anchor);
+		})
+		.catch(function () {
+			location.href = anchor.getAttribute("href");
+		});
 });
 
 overlay.addEventListener("click", closeDrawer);
 closeBtn.addEventListener("click", closeDrawer);
 document.addEventListener("keydown", function (e) {
-\tif ("Escape" === e.key && drawer.classList.contains("open")) closeDrawer();
+	if ("Escape" === e.key && drawer.classList.contains("open")) closeDrawer();
 });
 })();`

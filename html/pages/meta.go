@@ -82,3 +82,16 @@ func isAlnum(b byte) bool {
 func kBTcodes(k kb.KB) []string {
 	return extractTCodes(k.Notes + "\n" + k.Resolution)
 }
+
+// ModuleSAPFor expose la dérivation module aux adapters (bibliothèque
+// locale) : un seul calcul, aucune règle dupliquée côté client — le
+// serveur répond avec le libellé qu'il afficherait lui-même.
+func ModuleSAPFor(tags []string) string {
+	return moduleSAP(tags)
+}
+
+// TCodesFor expose l'extraction des T-codes (sections Notes + Résolution)
+// aux adapters : même source de vérité que les cartes serveur.
+func TCodesFor(notes, resolution string) []string {
+	return extractTCodes(notes + "\n" + resolution)
+}

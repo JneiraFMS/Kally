@@ -93,14 +93,18 @@ func InputCustom(champ ChampFormulaire) gomponents.Node {
 	)
 }
 
-// formNode factorise la construction du formulaire HTMX.
-func formNode(fields []ChampFormulaire, action string, bouton string) gomponents.Node {
+// formNode factorise la construction du formulaire HTMX. Les nœuds extra
+// (variadiques) sont rendus avant le bouton submit, dans le formulaire :
+// bascules d'enregistrement partagées entre KB serves et bibliothèque
+// locale.
+func formNode(fields []ChampFormulaire, action string, bouton string, extra []gomponents.Node) gomponents.Node {
 	var elements []gomponents.Node
 
 	for _, champ := range fields {
 		elements = append(elements, InputCustom(champ))
 	}
 
+	elements = append(elements, extra...)
 	elements = append(elements, BoutonSubmit(bouton))
 
 	return Form(
@@ -113,6 +117,9 @@ func formNode(fields []ChampFormulaire, action string, bouton string) gomponents
 		gomponents.Attr("hx-target", "#reponse-serveur"),
 		// Anti double-submit : htmx désactive le bouton pendant l'échange.
 		gomponents.Attr("hx-disabled-elt", "find button"),
+		// Marqueur du script grz-local : ce formulaire sait enregistrer
+		// dans la bibliothèque locale quand sa bascule est cochée.
+		gomponents.If(len(extra) > 0, gomponents.Attr("data-local-save", "1")),
 		Class("space-y-4"),
 
 		gomponents.Group(elements),
@@ -121,5 +128,12 @@ func formNode(fields []ChampFormulaire, action string, bouton string) gomponents
 
 // FormCustomWithAction construit un formulaire HTMX pointant vers action.
 func FormCustomWithAction(fields []ChampFormulaire, action string, bouton string) gomponents.Node {
-	return formNode(fields, action, bouton)
+	return formNode(fields, action, bouton, nil)
+}
+
+// FormCustomWithActionExtra construit le même formulaire avec des nœuds
+// supplémentaires rendus avant le bouton submit (ex. : bascule
+// « enregistrer dans mon dossier local »).
+func FormCustomWithActionExtra(fields []ChampFormulaire, action string, bouton string, extra ...gomponents.Node) gomponents.Node {
+	return formNode(fields, action, bouton, extra)
 }

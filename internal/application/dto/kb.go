@@ -14,6 +14,16 @@ type KBInput struct {
 	Tags       string
 }
 
+// KBParsed is the set of fields of a .md file of the local user library
+// (File System Access). It carries no ID: the identity comes from the file
+// name of the file being read.
+type KBParsed struct {
+	Erreur     string
+	Notes      string
+	Resolution string
+	Tags       []string
+}
+
 // KBDetail is the detail page data prepared by the application layer.
 type KBDetail struct {
 	KB domainkb.KB

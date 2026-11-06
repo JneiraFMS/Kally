@@ -62,6 +62,12 @@ func newTestHandler(repo *fakeRepo) *KBHandler {
 	return NewKBHandler(usecases.NewKBService(repo))
 }
 
+// newTestLocalHandler construit l'adaptateur HTTP de la bibliothèque locale
+// au-dessus du même service KB.
+func newTestLocalHandler(repo *fakeRepo) *KBLocalHandler {
+	return NewKBLocalHandler(usecases.NewKBService(repo))
+}
+
 func TestKBHandlerCreateSavesKB(t *testing.T) {
 	repo := newFakeRepo()
 	h := newTestHandler(repo)

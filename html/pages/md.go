@@ -2,6 +2,7 @@ package pages
 
 import (
 	"bytes"
+	"html"
 	"log"
 	"sync"
 
@@ -166,4 +167,17 @@ func mdToNodeWithKnown(md string, known []string) gomponents.Node {
 		return Div(Class("md"), gomponents.Text(md))
 	}
 	return Div(Class("md"), gomponents.Raw(buf.String()))
+}
+
+// RenderMarkdownHTML rend un contenu markdown en fragment HTML texte :
+// consommé par le script grz-local pour la fiche d'un fichier de la
+// bibliothèque locale (File System Access), injecté par innerHTML. Même
+// pipeline que les pages server-side (goldmark, wikilinks, chroma en
+// classes) : known == nil signifie résolveur inconnu.
+func RenderMarkdownHTML(md string, known []string) string {
+	var out bytes.Buffer
+	if err := mdToNodeWithKnown(md, known).Render(&out); err != nil {
+		return `<div class="md">` + html.EscapeString(md) + `</div>`
+	}
+	return out.String()
 }
