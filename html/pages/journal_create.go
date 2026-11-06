@@ -12,7 +12,7 @@ import (
 // note est la date).
 var journalFormFields = []elements.ChampFormulaire{
 	{Nom: "date", Type: "date", Label: "Date du journal :"},
-	{Nom: "content", Type: "textarea", Label: "Note (markdown) :", Rows: 14},
+	{Nom: "content", Type: "textarea", Label: "Note (markdown) :", Rows: 14, Images: true},
 }
 
 // FormulaireJournal transporte l'état d'un formulaire de journal rendu

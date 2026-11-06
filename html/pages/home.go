@@ -36,12 +36,16 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 		cards = append(cards, kbCard(k))
 	}
 
+	// Le bouton « Créer une KB » coexiste avec un accès au mode libre.
 	header := []gomponents.Node{
 		Div(Class("flex items-center justify-between"),
 			H1(Class("text-lg font-semibold text-g-hi"), gomponents.Text("Bases de connaissance")),
-			A(Href("/kb/new"),
-				Class("px-4 py-2 rounded-lg text-g-ink bg-g-accent hover:brightness-110 font-medium transition"),
-				gomponents.Text("Créer une KB"),
+			Div(Class("flex items-center gap-2"),
+				secondaryAction("/kb/new/quick", "Nouvelle KB libre"),
+				A(Href("/kb/new"),
+					Class("px-4 py-2 rounded-lg text-g-ink bg-g-accent hover:brightness-110 font-medium transition"),
+					gomponents.Text("Créer une KB"),
+				),
 			),
 		),
 	}
@@ -56,19 +60,9 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 	hasKBs := len(kbs) > 0
 	if hasKBs {
 		header = append(header,
-			Div(Class("relative"),
-				Input(
-					ID("kb-search"),
-					Type("search"),
-					AutoComplete("off"),
-					Placeholder("Recherche fuzzy… (touche / pour filtre instantané)"),
-					Class("w-full px-4 py-2.5 rounded-lg bg-g-block border border-g-border text-g-hi placeholder-g-text focus:border-g-accent outline-none transition"),
-				),
-				Span(ID("kb-search-count"),
-					Class("absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-g-text pointer-events-none"),
-					gomponents.Text(""),
-				),
-			),
+			searchField("kb-search", "kb-search-count", "kb-no-results",
+				"Recherche fuzzy… (touche / pour filtre instantané)",
+				"Aucune KB correspondant à", true),
 		)
 	}
 
@@ -108,9 +102,7 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 	// fuzzy injecté seulement quand il y a des cartes à filtrer.
 	if hasKBs {
 		content = append(content,
-			Div(ID("kb-no-results"), Class("hidden max-w-5xl mx-auto px-6 pb-8"),
-				Div(Class("bg-g-widget rounded-xl p-10 text-center text-g-text"), gomponents.Text("")),
-			),
+			noResultsBlock("kb-no-results", "max-w-5xl mx-auto px-6 pb-8"),
 			searchScriptNode(),
 		)
 	}

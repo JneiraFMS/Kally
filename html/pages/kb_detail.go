@@ -12,17 +12,30 @@ import (
 )
 
 // PageKBDetail affiche une KB comme une note : titre mono, tags en pills
-// sous le titre, sections séparées par l'espace seul, références liées et
-// KB liées (tags + liens explicites).
+// sous le titre, références liées et KB liées (tags + liens explicites). La
+// forme suit le contenu réel : une section sans matière (Erreur/Notes/
+// Résolution) ne s'affiche pas, de sorte qu'une KB créée en mode libre garde
+// sa forme d'origine jusqu'à ce qu'elle soit complétée.
 func PageKBDetail(currentPath string, detail dto.KBDetail) gomponents.Node {
 	k := detail.KB
-	sections := []gomponents.Node{
-		noteSection("Erreur", monoBody(k.Erreur)),
-		noteSection("Notes", mdBody(k.Notes, detail.KnownIDs)),
-		noteSection("Résolution", mdBody(k.Resolution, detail.KnownIDs)),
+
+	var sections []gomponents.Node
+	addSection := func(titre, contenu string, body func(string) gomponents.Node) {
+		if strings.TrimSpace(contenu) != "" {
+			sections = append(sections, noteSection(titre, body(contenu)))
+		}
+	}
+	addSection("Erreur", k.Erreur, monoBody)
+	addSection("Notes", k.Notes, func(texte string) gomponents.Node {
+		return mdBody(texte, detail.KnownIDs)
+	})
+	addSection("Résolution", k.Resolution, func(texte string) gomponents.Node {
+		return mdBody(texte, detail.KnownIDs)
+	})
+	sections = append(sections,
 		backlinksSection(detail.Backlinks),
 		relatedSection(detail.Related, detail.Neighbors),
-	}
+	)
 
 	return layout("KB "+k.ID, currentPath, []gomponents.Node{
 		// Barre d'actions discrète (boutons secondaires sans bordure,

@@ -44,6 +44,79 @@ func TestPageKBEditFieldsConfiguration(t *testing.T) {
 	}
 }
 
+// TestKBEditSharesCreateFieldOptions : toute option ajoutée à la création
+// (rows, mono, Images) se propage à l'édition — les deux listes de champs se
+// dérivent l'une de l'autre, plus de copie qui dérive.
+func TestKBEditSharesCreateFieldOptions(t *testing.T) {
+	for _, source := range kbFormFields {
+		edit, _ := findField(kbEditFieldsFor("KB-0001", nil), source.Nom)
+		if edit == nil {
+			t.Errorf("champ %s absent du formulaire d'édition", source.Nom)
+			continue
+		}
+		if edit.Images != source.Images {
+			t.Errorf("champ %s Images = %v (édition), want %v (création)",
+				source.Nom, edit.Images, source.Images)
+		}
+		if edit.Mono != source.Mono || edit.Rows != source.Rows {
+			t.Errorf("champ %s Mono/Rows = %v/%d (édition), want %v/%d (création)",
+				source.Nom, edit.Mono, edit.Rows, source.Mono, source.Rows)
+		}
+	}
+}
+
+// TestKBQuickFormFields : le mode libre de création de KB propose
+// uniquement l'identifiant (saisi à la main, modifiable), une note markdown
+// libre (14 lignes, images collables) et des tags optionnels — pas de
+// sections Erreur/Résolution (complétables par l'édition).
+func TestKBQuickFormFields(t *testing.T) {
+	if f, _ := findField(kbQuickFormFields, "id"); f == nil || f.LectureSeule {
+		t.Errorf("champ id = %+v, want présent et saisissable à la main", f)
+	}
+	notes, notesIndex := findField(kbQuickFormFields, "notes")
+	if notes == nil || !notes.Images || notes.Rows != 14 {
+		t.Errorf("champ notes = %+v, want Images=true Rows=14", notes)
+	}
+	if notesIndex < 0 || kbQuickFormFields[notesIndex-1].Nom != "id" {
+		t.Errorf("ordre des champs libre = %v, want id avant notes", kbQuickFormFields)
+	}
+	if f, _ := findField(kbQuickFormFields, "tags"); f == nil {
+		t.Error("champ tags manquant dans le mode libre")
+	}
+	for _, absent := range []string{"erreur", "resolution"} {
+		if _, i := findField(kbQuickFormFields, absent); i >= 0 {
+			t.Errorf("le mode libre ne doit pas contenir le champ %s", absent)
+		}
+	}
+}
+
+// TestPageKBQuickRender : le formulaire libre se rend avec son label, le
+// script de collage et sans aucune zone Erreur/Résolution.
+func TestPageKBQuickRender(t *testing.T) {
+	html := renderNode(t, PageKBCreateQuick("/kb/new/quick"))
+
+	if !strings.Contains(html, "Note libre (markdown) :") {
+		t.Errorf("label du champ libre absent:\n%s", html)
+	}
+	if !strings.Contains(html, "grz-image-paste") {
+		t.Error("script de collage absent du formulaire libre")
+	}
+	if strings.Contains(html, `id="field-erreur"`) || strings.Contains(html, `id="field-resolution"`) {
+		t.Errorf("sections Erreur/Résolution rendues dans le mode libre:\n%s", html)
+	}
+}
+
+// TestPageKBQuickRerenderKeepsValues : après une erreur, la note saisie
+// est ré-affichée.
+func TestPageKBQuickRerenderKeepsValues(t *testing.T) {
+	html := renderNode(t, PageKBCreateQuickWith("/kb/new/quick", FormulaireKB{
+		Valeurs: map[string]string{"notes": "note conservée"},
+	}))
+	if !strings.Contains(html, "note conservée") {
+		t.Errorf("note saisie perdue après erreur:\n%s", html)
+	}
+}
+
 // TestPageKBCreateMarkdownHint : les libellés signalent que Notes et
 // Résolution acceptent le markdown.
 func TestPageKBCreateMarkdownHint(t *testing.T) {

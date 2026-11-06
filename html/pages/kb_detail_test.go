@@ -49,8 +49,9 @@ func TestPageKBDetailRendersNoteStyle(t *testing.T) {
 		}
 	}
 
-	// Chaque section est un H2 suivi de son texte
-	for _, titre := range []string{"Erreur", "Notes", "Résolution"} {
+	// Chaque section remplie est un H2 suivi som texte ; la section vide
+	// (Notes ici) ne s'affiche pas du tout.
+	for _, titre := range []string{"Erreur", "Résolution"} {
 		if !strings.Contains(html, "<h2") || !strings.Contains(html, ">"+titre+"</h2>") {
 			t.Errorf("la section %q n'est pas un H2", titre)
 		}
@@ -61,9 +62,9 @@ func TestPageKBDetailRendersNoteStyle(t *testing.T) {
 		t.Errorf("texte de section manquant")
 	}
 
-	// Section vide : mention "— vide —"
-	if !strings.Contains(html, "— vide —") {
-		t.Errorf("la section vide n'affiche pas la mention '— vide —'")
+	// La section vide n'existe plus dans le rendu : ni titre, ni Mention « — vide — ».
+	if strings.Contains(html, "— vide —") {
+		t.Errorf("section vide encore rendue (mention « — vide — »):\n%s", html)
 	}
 
 	// Badge tag cliquable vers le filtre (migré sur /?tag=)
@@ -91,6 +92,46 @@ func TestPageKBDetailRendersNoteStyle(t *testing.T) {
 	// Aucun débris de débogage jeté dans la note
 	if strings.Contains(html, "sdfsdf") {
 		t.Errorf("débris de débogage rendu dans la note:\n%s", html)
+	}
+}
+
+// TestPageKBDetailHidesEmptySections : la forme suit le contenu — une KB
+// créée en mode libre (seule la note est remplie) n'affiche pas les sections
+// Erreur et Résolution vides.
+func TestPageKBDetailHidesEmptySections(t *testing.T) {
+	k, err := kb.NewKB("KB-0001", "", "note libre", "")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
+
+	if strings.Contains(html, ">Erreur</h2>") || strings.Contains(html, ">Résolution</h2>") {
+		t.Errorf("sections vides rendues malgré leur absence de contenu:\n%s", html)
+	}
+	if !strings.Contains(html, ">Notes</h2>") {
+		t.Errorf("section Notes absente du détail:\n%s", html)
+	}
+	if !strings.Contains(html, "note libre") {
+		t.Errorf("contenu de la KB libre absent:\n%s", html)
+	}
+}
+
+// TestPageKBDetailKeepsFilledSections : une section remplie apparaît ; une
+// section vide reste masquée, même si une autre est prolongée.
+func TestPageKBDetailKeepsFilledSections(t *testing.T) {
+	k, err := kb.NewKB("KB-0001", "trace d'erreur", "notes", "")
+	if err != nil {
+		t.Fatalf("NewKB(): %v", err)
+	}
+
+	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
+
+	if !strings.Contains(html, ">Erreur</h2>") || !strings.Contains(html, ">Notes</h2>") {
+		t.Errorf("sections remplies invisibles:\n%s", html)
+	}
+	if strings.Contains(html, ">Résolution</h2>") {
+		t.Errorf("section Résolution vide rendue:\n%s", html)
 	}
 }
 
@@ -192,11 +233,10 @@ func TestPageKBDetailMarkdownIsSafe(t *testing.T) {
 	}
 }
 
-// TestPageKBDetailEmptySectionsStillMarked : les sections vides gardent la
-// mention « — vide — » (avant/après le nouveau rendu). Ces mentions et le
-// compte des KB ne doivent pas rester au niveau délavé g-subdue
-// (contraste insuffisant — passe accessibilité Phase 3).
-func TestPageKBDetailEmptySectionsStillMarked(t *testing.T) {
+// TestPageKBDetailEmptySectionsHidden : les sections vides disparaissent de
+// la fiche (une KB créée en mode libre garde sa forme) ; en aucun cas une
+// mention délavée n'apparaît (couvert au contaste par l'absence de rendu).
+func TestPageKBDetailEmptySectionsHidden(t *testing.T) {
 	k, err := kb.NewKB("KB-0001", "Erreur seule", "", "")
 	if err != nil {
 		t.Fatalf("NewKB(): %v", err)
@@ -204,14 +244,14 @@ func TestPageKBDetailEmptySectionsStillMarked(t *testing.T) {
 
 	html := renderNode(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k}))
 
-	if strings.Count(html, "— vide —") != 2 {
-		t.Errorf("sections vides non marquées « — vide — »:\n%s", html)
+	if strings.Count(html, "— vide —") != 0 {
+		t.Errorf("sections vides encore rendues (mention « — vide — »):\n%s", html)
+	}
+	if strings.Contains(html, ">Notes</h2>") || strings.Contains(html, ">Résolution</h2>") {
+		t.Errorf("titres de sections vides rendus:\n%s", html)
 	}
 	if strings.Contains(html, "text-g-subdue") {
 		t.Errorf("mentions importantes encore en g-subdue (contraste):\n%s", html)
-	}
-	if !strings.Contains(html, `<i class="text-g-text"`) {
-		t.Errorf("mention « vide » sans classe contrastée g-text:\n%s", html)
 	}
 }
 

@@ -102,12 +102,13 @@ The current implementation keeps those boundaries in these packages:
 internal/domain/kb                          # KB entity and domain rules (tags, graph, wiki links)
 internal/domain/wikilink                    # [[cible]] grammar and extraction (pure, no HTML/storage)
 internal/domain/journal                     # journal entry (free markdown, dated — Logseq)
-internal/application/usecases                # KBService and JournalService orchestration
+internal/domain/media                       # pasted-image rules (formats, size, content-addressed names)
+internal/application/usecases                # KBService, JournalService and MediaService orchestration
 internal/application/dto                     # application input/output models
 internal/application/ports/{inbound,outbound} # application contracts
-internal/adapters/outbound/persistence       # Markdown file repositories (KB + journal)
-web                                          # inbound HTTP adapters (kb_handler, journal_handler)
-html/pages                                   # HTML presentation adapter
+internal/adapters/outbound/persistence       # Markdown + media file repositories
+web                                          # inbound HTTP adapters (kb_handler, journal_handler, media_handler)
+html/pages                                   # HTML presentation adapter (incl. image_paste.go script)
 main.go                                      # dependency composition root
 ```
 
@@ -123,6 +124,19 @@ routes: `GET /journal`, `GET /journal/new`, `POST /journal`,
 Persistence formats and filesystem access belong in adapters; domain packages
 must not serialize entities or calculate presentation-specific layout. HTTP
 handlers depend on the inbound application port, never directly on a repository.
+
+### Format des fichiers KB et contenu utilisateur
+
+Un fichier KB délimite ses champs par des sections propres du fichier :
+`## Erreur`, `## Notes`, `## Résolution` (plus l'en-tête `# ID` et le front
+matter `tags:`). Tout contenu utilisateur qui commence une ligne par « ## »
+(qu'une heading saisie dans un champ) **éclatait** la section propriétaire
+et faisait perdre à la relecture tout ce qui la suivait. L'adapter
+(`md_repository.go`) échappe maintenant ces lignes à l'écriture
+(`\## …` — échappement de heading markdown valide) via `escapeUserHeadings`
+et les restitue à la lecture via `unescapeUserHeadings` : le round-trip
+préserve exactement le contenu saisi. Les liens wiki/images restent
+inchangés ; le journal (markdown libre, sans délimiteur) n'est pas concerné.
 
 ### Liens wiki `[[...]]` (Logseq)
 
@@ -153,6 +167,83 @@ d'alias). `Erreur` reste une trace brute, jamais liée.
   mini-graphe : la section « KB liées » et le graphe global suffisent.
 - Les liens wiki du journal restent hors périmètre (rétroliens non
   calculés) ; ils peuvent s'afficher comme liens simples sans résolution.
+
+### Création libre de KB (`/kb/new/quick`)
+
+Deux formulaires de création coexistent, sous-tendus par le même use case
+`KBService.Create` :
+
+- formulaire complet : `GET /kb/new` → `POST /kb` (identifiant, Erreur,
+  Notes, Résolution, tags) ;
+- **mode libre** : `GET /kb/new/quick` → `POST /kb/quick` (identifiant saisi
+  à la main, une seule note markdown libre avec images collables, tags
+  optionnels). Les sections Erreur/Résolution sont absentes du formulaire
+  (vide à la création) et restent complètables via l'édition. La fiche
+  détail est **adaptative** : seules les sections non vides se rendent
+  (`PageKBDetail`), donc une KB libre garde sa forme d'origine tant qu'elle
+  n'est pas complétée ; il n'existe plus de mention « — vide — » de secours
+ pour les fiches KB.
+
+- `html/pages/kb_create.go` : `kbQuickFormFields` est une liste **sans
+  dérive possible** des sections Erreur/Résolution ; `kbEditFieldsFor`
+  dérive de `kbFormFields` (toute option ajoutée à la création se propage
+  à l'édition — ce couplage a corrigé un bug d'images collables).
+- `web/kb_handler.go` : `ShowNewQuickForm` / `CreateQuick` réutilisent
+  `inputFromRequest` et les messages de validation ; les erreurs
+  re-rendent `PageKBCreateQuickWith` (jamais le formulaire complet).
+- Accueil : bouton secondaire « Nouvelle KB libre » à côté de « Créer une
+  KB » (`html/pages/home.go`).
+
+### Recherche fuzzy partagée (`data-fuzzy`)
+
+Le filtre instantané est 100 % client (`html/pages/home_search.go`) : le
+serveur rend déjà tout ce qui est filtrable, chaque élément porte une clé
+`data-search` minuscule, le scoreur (`fnFuzzyScore`) matche une
+sous-séquence (bonus lettres consécutives et débuts de mot) et le
+raccourci `/` focuse le champ. Le markup est **déclaratif** : l'input
+porte `data-fuzzy` et déclare ses acolytes sur lui-même
+
+- `data-fuzzy-count` : id du compteur « n/total » ;
+- `data-fuzzy-no-results` : id du bloc « aucun résultat » (caché) ;
+- `data-fuzzy-empty` : libellé du message vide ;
+- `data-fuzzy-order` : (optionnel) re-trier par pertinence via `style.order`
+  (grille d'accueil) — sans lui la liste conserve son ordre (journal).
+
+Utilisé par l'accueil (cartes KB, `searchText` = ID + 1ʳᵉ ligne de l'erreur
++ tags) et le journal (`journalSearchKey` = date brute + date FR + 3
+premières lignes non vides de la note). Rendu seulement quand il y a
+quelque chose à filtrer (progressive enhancement).
+
+### Images collées
+
+Les zones markdown `notes`, `resolution` (KB) et `content` (journal)
+acceptent le collage et le glisser-déposer d'images. `Erreur` reste une
+trace brute, sans image.
+
+- `internal/domain/media` : règles pures (`NameFor`, `ValidName`,
+  `ContentType`, `MaxSize`). Formats acceptés : PNG, JPEG, GIF, WebP —
+  **SVG refusé** (script embarqué). Taille maximale 5 Mio. Nom =
+  `<sha256>.<ext>`, adressé par le contenu : deux images identiques
+  partagent le même fichier.
+- `web/media_handler.go` : `POST /media` reçoit le binaire brut et
+  recalcule le type avec `http.DetectContentType` (l'en-tête client n'est
+  jamais une preuve). `GET /media/{name}` sert le fichier avec
+  `X-Content-Type-Options: nosniff` et un cache immuable (nom = hash).
+  Erreurs : `415` format refusé, `413` taille dépassée, `400` corps vide
+  ou nom invalide, `404` nom inconnu.
+- `internal/adapters/outbound/persistence/local_media_repository.go` :
+  stockage dans `data/media/` (couvert par `.gitignore` via `data/`),
+  écriture atomique (fichier temporaire puis `rename`), déduplication par
+  nom.
+- `html/pages/image_paste.go` : script inclus **uniquement** dans les pages
+  de formulaire. Il insère un marqueur pendant l'envoi, le remplace par
+  `![image](/media/<hash>.<ext>)`, désactive les boutons pendant l'upload
+  et retire le marqueur en cas d'échec. Le surlignage de dépôt utilise un
+  `outline` inline (`var(--g-sep)`) : aucune classe Tailwind nouvelle, donc
+  pas de régénération CSS.
+- Rendu : goldmark rend déjà `![alt](url)` ; la règle inline `.md img`
+  (`layout.go`) borne la largeur à la fiche. Les images orphelines ne sont
+  pas supprimées quand une KB disparaît (hors périmètre).
 
 ---
 

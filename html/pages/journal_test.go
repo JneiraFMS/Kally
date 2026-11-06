@@ -74,6 +74,36 @@ func TestPageJournalEntreesRecentesDavboard(t *testing.T) {
 	}
 }
 
+// TestPageJournalSearchBar : la liste d'entrées porte la barre de fuzzy
+// partagée (attributs déclaratifs data-fuzzy-*) : champ, compteur, état
+// « aucun résultat », index data-search par ligne et script client. Sans
+// aucune entrée, ni barre ni état vide ne sont rendus.
+func TestPageJournalSearchBar(t *testing.T) {
+	entries := []domainjournal.Entry{mustEntry(t, "2026-11-03", "note recente")}
+	html := renderedPage(t, PageJournal("/", dto.JournalPage{Entries: entries}))
+
+	for _, want := range []string{
+		`id="journal-search"`,
+		`data-fuzzy`,
+		`data-fuzzy-count="journal-search-count"`,
+		`data-fuzzy-no-results="journal-no-results"`,
+		`id="journal-no-results"`,
+		// Clé d'index de la ligne : date brute, date en clair, extrait.
+		`data-search="2026-11-03 3 novembre 2026 note recente"`,
+		"grz-fuzzy",
+	} {
+		if !strings.Contains(html, want) {
+			t.Errorf("recherche du journal sans %q:\n%s", want, html)
+		}
+	}
+
+	// Sans entrée : progressive enhancement inutile, ni barre ni état vide.
+	empty := renderedPage(t, PageJournal("/", dto.JournalPage{}))
+	if strings.Contains(empty, "journal-search") || strings.Contains(empty, "grz-fuzzy") {
+		t.Errorf("barre de recherche rendue sans aucune entrée:\n%s", empty)
+	}
+}
+
 // TestPageJournalAucuneEntree : état vide clair quand le journal est vide.
 func TestPageJournalAucuneEntree(t *testing.T) {
 	html := renderedPage(t, PageJournal("/", dto.JournalPage{}))
@@ -95,6 +125,31 @@ func TestPageJournalNoNestedAnchors(t *testing.T) {
 		Entries:     []domainjournal.Entry{mustEntry(t, "2026-11-03", "e")},
 	}
 	noNestedAnchors(t, renderedPage(t, PageJournal("/", page)))
+}
+
+// TestJournalEntrySearchKey : la clé d'index d'une entrée réunit la date
+// brute, la date en clair et les 3 premières lignes non vides du markdown
+// (garde le DOM léger ; tout en minuscules, comme l'index des KB).
+func TestJournalEntrySearchKey(t *testing.T) {
+	entry := mustEntry(t, "2026-11-05",
+		"Achats de consommables\n\nfournisseur Airbus Defense\nligne trois\nquatrième ligne")
+
+	key := journalSearchKey(entry)
+	for _, want := range []string{"2026-11-05", "5 novembre 2026", "achats de consommables", "fournisseur airbus defense", "ligne trois"} {
+		if !strings.Contains(key, want) {
+			t.Errorf("journalSearchKey() sans %q: %q", want, key)
+		}
+	}
+	if strings.Contains(key, "quatrième") {
+		t.Errorf("journalSearchKey() dépasse 3 lignes non vides: %q", key)
+	}
+
+	// Les lignes vide/espaces sont sautées ; une première ligne unique
+	// donne la clé exacte « dates » + extrait.
+	whitespace := mustEntry(t, "2026-01-01", "première ligne\n\n   \n\n   \n")
+	if key := journalSearchKey(whitespace); key != "2026-01-01 1 janvier 2026 première ligne" {
+		t.Errorf("journalSearchKey(lignes vides ignorées) = %q", key)
+	}
 }
 
 // TestPageJournalCreate : le formulaire de création est libre — la date du

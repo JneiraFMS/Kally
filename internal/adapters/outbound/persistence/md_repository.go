@@ -142,8 +142,41 @@ func toMarkdown(item domainkb.KB) string {
 		sb.WriteString("]\n---\n\n")
 	}
 	fmt.Fprintf(&sb, "# %s\n\n## Erreur\n%s\n\n## Notes\n%s\n\n## Résolution\n%s\n",
-		item.ID, item.Erreur, item.Notes, item.Resolution)
+		item.ID,
+		escapeUserHeadings(item.Erreur),
+		escapeUserHeadings(item.Notes),
+		escapeUserHeadings(item.Resolution))
 	return sb.String()
+}
+
+// escapeUserHeadings neutralise le contenu utilisateur qui commence une
+// ligne par « ## » : ce préfixe délimite les sections propres du fichier,
+// une heading saisie dans un champ éclatait donc la section propriétaire et
+// faisait perdre tout ce qui la suivait. Un anté-backslash invalide la
+// frontière (et constitue un échappement de heading markdown valide) ;
+// unescapeUserHeadings restitue le contenu à la lecture. Une ligne isolée
+// `\## …` littéralement saisie par l'utilisateur s'affiche comme « ## … » :
+// nuance acceptée, aucun contenu n'est perdu dans le round-trip.
+func escapeUserHeadings(content string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, "## ") {
+			lines[i] = "\\" + line
+		}
+	}
+	return strings.Join(lines, "\n")
+}
+
+// unescapeUserHeadings restitue les headings utilisateur échappées à
+// l'écriture (voir escapeUserHeadings).
+func unescapeUserHeadings(content string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, "\\## ") {
+			lines[i] = line[1:]
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func parseMarkdown(id, raw string) domainkb.KB {
@@ -159,7 +192,10 @@ func parseMarkdown(id, raw string) domainkb.KB {
 		if !hasSection {
 			return
 		}
-		text := strings.Trim(content.String(), "\n")
+		// Les headings utilisateur (échappées à l'écriture) reviennent
+		// telles quelles ; une section inconnue reste ignorée, mais elle
+		// ne peut plus être introduite par du contenu utilisateur.
+		text := unescapeUserHeadings(strings.Trim(content.String(), "\n"))
 		switch section {
 		case "Erreur":
 			item.Erreur = text
