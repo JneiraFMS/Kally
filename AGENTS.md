@@ -294,8 +294,12 @@ compte utilisateur : l'isolation vient du poste/navigateur, pas du serveur.
   chips T-codes `/n`, Erreur trace brute mono, Notes/Résolution rendues,
   fiche adaptative, actions **Modifier** (préremplissage via
   `/kb/local/parse` + `?local=1&id=…`) et **Supprimer**
-  (`dir.removeEntry`) **vit uniquement dans la fiche**, comme côté
-  serveur) ;
+  (`dir.removeEntry`) **vit uniquement dans la fiche**, **en tête**
+  (sous le bandeau, même barre que la page détail : secondaire + danger),
+  comme le **fragment serveur `PageKBDetailPanel`** qui porte désormais
+  aussi Modifier + Supprimer (`secondaryAction` / `deleteButton`, test
+  `TestKBHandlerPanelCarriesActions`) — la fiche reste éditable sans
+  quitter le tiroir des deux côtés ;
   **ordre DOM garanti** : le shell du tiroir est rendu AVANT la barre
   (`drawerShell()` puis `PageLocalBar()` dans `PageAccueil`) — le script
   s'exécute au parsing et ouvre les fiches dans le tiroir ; de plus la

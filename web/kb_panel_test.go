@@ -40,6 +40,29 @@ func TestKBHandlerPanelFragment(t *testing.T) {
 	}
 }
 
+// TestKBHandlerPanelCarriesActions : le fragment du tiroir porte les mêmes
+// actions que la page détail (Modifier + Supprimer avec confirmation) —
+// la fiche reste éditable sans quitter le tiroir.
+func TestKBHandlerPanelCarriesActions(t *testing.T) {
+	repo := newFakeRepo()
+	if err := seedKB(t, repo, "KB-0001", "kpi"); err != nil {
+		t.Fatal(err)
+	}
+	h := newTestHandler(repo)
+
+	req := httptest.NewRequest("GET", "/kb/panel?id=KB-0001", nil)
+	w := httptest.NewRecorder()
+	h.Panel(w, req)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "Modifier") || !strings.Contains(body, `href="/kb/edit?id=KB-0001"`) {
+		t.Errorf("bouton Modifier absent du fragment du tiroir:\n%.400s", body)
+	}
+	if !strings.Contains(body, `hx-post="/kb/delete"`) || !strings.Contains(body, `value="KB-0001"`) {
+		t.Errorf("bouton Supprimer absent du fragment du tiroir:\n%.400s", body)
+	}
+}
+
 // TestKBHandlerPanelNotFound : fiche inconnue → 404 (le tiroir garde son
 // message d'erreur locale via le catch du script).
 func TestKBHandlerPanelNotFound(t *testing.T) {

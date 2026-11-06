@@ -154,6 +154,9 @@ func TestLocalKBScriptMergedGridContract(t *testing.T) {
 		"px-6 py-5 space-y-5",
 		"whitespace-pre-wrap break-words",
 		"/n",
+		// édition locale : case cochée sans attendre le réseau
+		"editingLocal",
+		"toggle.checked = true",
 	} {
 		if !strings.Contains(localKBScript, marker) {
 			t.Errorf("marqueur manquant dans le script grz-local : %q", marker)

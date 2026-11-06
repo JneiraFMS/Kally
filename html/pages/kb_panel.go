@@ -44,6 +44,14 @@ func PageKBDetailPanel(detail dto.KBDetail) gomponents.Node {
 		ID("kb-panel"),
 		Class("px-6 py-5 space-y-5"),
 		panelHeader(k),
+		// Barre d'actions du tiroir : les mêmes boutons que la page détail
+		// (Modifier + Supprimer avec confirmation htmx). La fiche reste
+		// éditable sans quitter le tiroir ; le style secondaire est celui
+		// de la page (bloc sans bordure, danger en rouge).
+		Div(Class("flex justify-end gap-2"),
+			secondaryAction("/kb/edit?id="+k.ID, "Modifier"),
+			deleteButton(k.ID),
+		),
 		gomponents.Group(sections),
 	)
 }

@@ -495,6 +495,18 @@ async function openDetail(e) {
 	if (dateLabel) headRow.appendChild(el("span", "tabular-nums font-mono text-[11px] text-g-text", dateLabel));
 	host.appendChild(headRow);
 
+	// Barre d'actions en tête de fiche, comme la fiche serveur (page
+	// détail / panel) : Modifier + Supprimer visibles sans défiler.
+	var actions = el("div", "flex justify-end gap-2");
+	var edit = el("a", "mx-2 mb-1 px-3.5 py-1.5 rounded-lg bg-g-block text-g-text hover:text-g-hi hover:bg-g-hover text-xs transition-colors", "Modifier");
+	edit.href = "/kb/new?local=1&id=" + encodeURIComponent(e.id);
+	actions.appendChild(edit);
+	var del = el("button", "px-3.5 py-1.5 rounded-lg bg-g-block text-g-negative-text hover:bg-g-hover hover:brightness-125 text-xs transition-colors", "Supprimer");
+	del.type = "button";
+	del.addEventListener("click", function () { removeEntry(e.id); });
+	actions.appendChild(del);
+	host.appendChild(actions);
+
 	// Bandeau T-codes : chips mono notation /n, prêts pour la commande SAP.
 	if (codes.length) {
 		var banner = el("div", "flex flex-wrap items-center gap-1.5");
@@ -520,17 +532,6 @@ async function openDetail(e) {
 		return node;
 	});
 
-	// Les actions vivent dans la fiche, comme côté serveur.
-	var actions = el("div", "flex flex-wrap items-center gap-3 mt-2");
-	var edit = el("a", "px-3 py-1.5 rounded-md border border-g-border bg-g-widget text-g-text hover:text-g-hi hover:border-g-cyan transition-colors text-xs", "Modifier");
-	edit.href = "/kb/new?local=1&id=" + encodeURIComponent(e.id);
-	actions.appendChild(edit);
-	var del = el("button", "px-3 py-1.5 rounded-md border border-g-border bg-g-widget text-g-negative-text hover:underline transition-colors text-xs", "Supprimer");
-	del.type = "button";
-	del.addEventListener("click", function () { removeEntry(e.id); });
-	actions.appendChild(del);
-	host.appendChild(actions);
-
 	roots.body.innerHTML = "";
 	roots.body.appendChild(host);
 	bindCodeCopy(roots.body);
@@ -550,15 +551,25 @@ async function removeEntry(id) {
 }
 
 // ---- enregistrement local depuis les formulaires existants ---------------
+// Bascule cochée immédiatement : l'URL ?local=1 n'est posée que par le
+// bouton Modifier de la fiche locale — l'article est local par
+// construction. La case (et le bloc) deviennent visibles/cochés
+// SYNCHRONIQUEMENT, sans attendre le réseau ni IndexedDB.
+var editingLocal = !!(toggle && new URLSearchParams(window.location.search).get("local") === "1");
+if (editingLocal) {
+	toggle.checked = true;
+	revealBlock();
+}
+
 var validLocalID = function (id) { return /^[A-Za-z0-9_-]+$/.test(id); };
 
-// Pré-remplissage du mode édition local (?local=1&id=...) : lecture du
+// Pré-remplissage du mode édition locale (?local=1&id=...) : lecture du
 // fichier, analyse par le serveur, remplissage des champs présents.
-if (toggle && new URLSearchParams(window.location.search).get("local") === "1") {
+if (editingLocal) {
 	(async function () {
 		await discovery;
 		if (!dir) {
-			setMessage("Dossier non connecté : décochez pour enregistrer sur le serveur, ou connectez le dossier puis rechargez.");
+			setMessage("Dossier non connecté : l'enregistrement restera en attente (connectez le dossier puis rechargez).");
 			return;
 		}
 		var id = new URLSearchParams(window.location.search).get("id");
