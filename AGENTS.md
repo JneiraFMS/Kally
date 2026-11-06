@@ -208,18 +208,11 @@ vue tableau dense optionnelle et un **drawer slide-over** pour le détail.
   (`/kb/detail?id=…`). Les ancres des cartes (`kbCard`, lien étendu) et
   des lignes du tableau portent `data-kb-drawer="<ID>"` + href natif
   conservé — amélioration progressive, sans JS le détail fonctionne.
-- **« Copier la solution »** (`copySolutionBlock` + `solutionText`) :
-  texte prêt-à-coller ServiceNow (en-tête KB/module, symptôme, contexte,
-  étapes, lien `serviceNowURL`) logé dans une `textarea` cachée ; bouton
-  `data-copy-target`, succès `data-copy-done`, feedback 1500 ms, repli
-  `execCommand`. Le script `grz-copy` (garde-fou `window.grzCopyBound`,
-  idempotent) vit à la fois dans le shell du tiroir ET dans la page
-  détail : les scripts injectés via `innerHTML` ne s'exécutent pas, donc
-  le fragment `kb-panel` embarque lui aussi le script copier pour rester
-  copiable en navigation directe sans tiroir ; le garde-fou rend
-  l'écoute idempotente (jamais de double handler).
 - Bandeau T-codes du fragment : chips mono `/nME22N` (notation logique
-  de session SAP), surface `g-code` + filet `g-border`.
+  de session SAP), surface `g-code` + filet `g-border`. (Le bloc « Copier
+  la solution » — bouton, textarea presse-papiers et script `grz-copy` —
+  a été retiré : sans valeur ajoutée, pressage sans effet. Il n'existe
+  pas d'autre copie que celle des blocs de code markdown, `md.go`.)
 
 ### Création libre de KB (`/kb/new/quick`)
 
@@ -996,8 +989,10 @@ binary via `go:embed` (`web/assets.go`, served at `GET /assets/tailwind.css`).
 There is no Tailwind CDN or Node toolchain.
 
 - Source of truth for colors: `html/pages/palette.go` (Kally tokens —
-  obsidian `#0b0f17` canvas / indigo accents in dark, slate-50 / white in
-  light, echoing Linear/Raycast/Vercel docs).
+  Dracula-flavoured dark `#282a36` canvas / `#21222c` cards / purple
+  `#bd93f9` accents with dark ink on them; near-white `#fcfcfd` canvas /
+  white cards in light, accents deepened for AA). Every text/background
+  pair is validated at 4.5:1 by `html/pages/contrast_test.go`.
   `tailwind.config.js` mirrors them — tests (`html/pages/palette_test.go`)
   fail if the two drift apart.
 - Source of truth for typography: Plus Jakarta Sans (body) and JetBrains

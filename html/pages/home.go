@@ -62,7 +62,7 @@ func PageAccueil(currentPath string, kbs []kb.KB, filtreTags ...string) gomponen
 	if hasKBs {
 		header = append(header,
 			searchField("kb-search", "kb-search-count", "kb-no-results",
-				"Recherche fuzzy… (touche / pour filtre instantané)",
+				"Recherche",
 				"Aucune KB correspondant à", true),
 			tagSegmentRow(kbs, filtreTags),
 		)

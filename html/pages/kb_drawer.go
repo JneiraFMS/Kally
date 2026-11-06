@@ -48,7 +48,6 @@ func drawerShell() gomponents.Node {
 			Div(ID("kb-drawer-body"), Class("flex-1 overflow-y-auto")),
 		),
 		gomponents.El("script", gomponents.Raw(drawerScript)),
-		copyScriptNode(),
 	})
 }
 

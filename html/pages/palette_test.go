@@ -24,68 +24,70 @@ var themeTokenNames = []string{
 }
 
 // wantPaletteValues : valeurs canoniques attendues du thème dark (la base
-// actuelle, palette Kally « console » : obsidienne + indigo) — dérive
-// interdite. Équivalents Tailwind notés en commentaire pour le tuning.
+// actuelle : fond type Dracula, cartes #21222c, accent pourpre #bd93f9) —
+// dérive interdite. g-code est une couche PLUS PROFONDE que la carte ;
+// g-negative-text / g-ink / g-syn-comment sont les variantes calibrées
+// AA (>= 4.5:1) de leurs tons bruts.
 var wantPaletteValues = map[string]string{
-	"g-bg":            "#0b0f17", // bg-slate-950 observe
-	"g-widget":        "#111726", // carte
-	"g-block":         "#151d2e", // bloc surélevé
-	"g-hover":         "#1d2739",
-	"g-border":        "#1e293b", // border-slate-800
-	"g-sep":           "#2a3648",
-	"g-code":          "#0c1120",
-	"g-accent":        "#4f46e5", // bg-indigo-600
-	"g-accent-dim":    "#232347",
-	"g-accent-text":   "#a5b4fc", // text-indigo-300
-	"g-cyan":          "#818cf8", // focus ring (indigo-400)
-	"g-hi":            "#f1f5f9", // text-slate-100
-	"g-text":          "#94a3b8", // text-slate-400
-	"g-base":          "#cbd5e1", // text-slate-300
-	"g-muted":         "#64748b", // text-slate-500 (décoratif)
-	"g-subdue":        "#475569", // text-slate-600 (décoratif)
-	"g-negative":      "#ef4444", // red-500
-	"g-negative-text": "#f87171", // text-red-400
-	"g-positive":      "#10b981", // emerald-500
-	"g-positive-text": "#6ee7b7", // text-emerald-300
+	"g-bg":            "#282a36", // Background
+	"g-widget":        "#21222c", // carte
+	"g-block":         "#343746", // surface secondaire
+	"g-hover":         "#44475a", // Current Line / Hover
+	"g-border":        "#44475a", // filet
+	"g-sep":           "#6272a4", // separator
+	"g-code":          "#17181f", // code : couche profonde
+	"g-accent":        "#bd93f9", // Purple
+	"g-accent-dim":    "#443653", // Purple muted
+	"g-accent-text":   "#bd93f9", // Purple text
+	"g-cyan":          "#8be9fd", // focus ring
+	"g-hi":            "#f8f8f2", // Foreground
+	"g-text":          "#e0e0e0", // Main text
+	"g-base":          "#f8f8f2", // Base text
+	"g-muted":         "#a6a6b3", // Muted text (décoratif)
+	"g-subdue":        "#6272a4", // Subdued text (décoratif)
+	"g-negative":      "#ff5555", // Red
+	"g-negative-text": "#ff7d7d", // Light red AA sur g-block
+	"g-positive":      "#50fa7b", // Green
+	"g-positive-text": "#69ff94", // Light green
 
-	"g-ink": "#ffffff",
+	"g-ink": "#282a36", // encre sombre sur l'accent pourpre (AA)
 
-	"g-syn-keyword": "#a5b4fc",
-	"g-syn-string":  "#6ee7b7",
-	"g-syn-comment": "#a6b5ca",
-	"g-syn-error":   "#fca5a5",
+	"g-syn-keyword": "#ff79c6",
+	"g-syn-string":  "#f1fa8c",
+	"g-syn-comment": "#7c87b8",
+	"g-syn-error":   "#ff5555",
 }
 
-// wantLightValues : mode clair — slate-50 / blanc / indigo-600, accents
-// assombris pour la lisibilité (écho du canon « Vercel docs » clair).
+// wantLightValues : mode clair — fond quasi-blanc, cartes blanches,
+// accents assombris pour la lisibilité (>= 4.5:1 sur les surfaces claires).
 var wantLightValues = map[string]string{
-	"g-bg":            "#f8fafc",
+	"g-bg":            "#fcfcfd",
 	"g-widget":        "#ffffff",
-	"g-block":         "#f1f5f9",
-	"g-hover":         "#e2e8f0",
-	"g-border":        "#e2e8f0",
-	"g-sep":           "#cbd5e1",
-	"g-code":          "#f1f5f9",
-	"g-accent":        "#4f46e5",
-	"g-accent-dim":    "#e0e7ff",
-	"g-accent-text":   "#4338ca",
-	"g-cyan":          "#4f46e5",
-	"g-hi":            "#0f172a",
-	"g-text":          "#475569",
-	"g-base":          "#334155",
-	"g-muted":         "#94a3b8",
-	"g-subdue":        "#cbd5e1",
-	"g-negative":      "#dc2626",
-	"g-negative-text": "#b91c1c",
-	"g-positive":      "#059669",
-	"g-positive-text": "#065f46",
+	"g-block":         "#f1f0f7",
+	"g-hover":         "#e8e6f0",
+	"g-border":        "#e0deeb",
+	"g-sep":           "#c8c5d8",
+	"g-code":          "#f1f0f7",
+	"g-accent":        "#8657c9", // pourpre assombri : encre blanche AA
+	"g-accent-dim":    "#eee5ff",
+	"g-accent-text":   "#7044b8",
+	"g-cyan":          "#008fb2",
+	"g-hi":            "#282a36",
+	"g-text":          "#44475a",
+	"g-base":          "#343746",
+	"g-muted":         "#77778b",
+	"g-subdue":        "#a6a6b3",
+	"g-negative":      "#d83b52",
+	"g-negative-text": "#b52b43",
+	"g-positive":      "#168b55",
+	"g-positive-text": "#087443",
 
 	"g-ink": "#ffffff",
 
-	"g-syn-keyword": "#4338ca",
-	"g-syn-string":  "#047857",
-	"g-syn-comment": "#475569",
-	"g-syn-error":   "#b91c1c",
+	"g-syn-keyword": "#a626a4",
+	"g-syn-string":  "#136f34",
+	"g-syn-comment": "#5f5f74",
+	"g-syn-error":   "#b02b41",
 }
 
 // TestThemePalettes : les deux palettes couvrent exactement les mêmes

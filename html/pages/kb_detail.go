@@ -49,11 +49,8 @@ func PageKBDetail(currentPath string, detail dto.KBDetail) gomponents.Node {
 			),
 		),
 
-		// Le bloc copier s'affiche juste sous le titre/tags, avant les
-		// sections (texte prêt-à-coller ServiceNow + script presse-papiers)
-		Note(k.ID, k.Tags, append([]gomponents.Node{copySolutionBlock(k)}, sections...)...),
+		Note(k.ID, k.Tags, sections...),
 		codeCopyScriptNode(),
-		copyScriptNode(),
 	})
 }
 

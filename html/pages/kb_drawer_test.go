@@ -73,47 +73,21 @@ func TestPanelFragmentAdaptative(t *testing.T) {
 	}
 }
 
-// TestPanelCopyBlock : le fragment porte le bloc « Copier la solution » —
-// bouton (data-copy-target), textarea cachée source du presse-papiers,
-// libellé de succès (data-copy-done) et script presse-papiers avec
-// feedback 1500 ms. Le fallback natif (textarea + execCommand) couvre le
-// presse-papiers non disponible.
-func TestPanelCopyBlock(t *testing.T) {
+// TestPanelCopyBlockRemoved : le bloc « Copier la solution » ne rend plus —
+// ni bouton, ni textarea presse-papiers, ni script grz-copy dans le
+// fragment du panel.
+func TestPanelCopyBlockRemoved(t *testing.T) {
 	html := renderedPage(t, PageKBDetailPanel(sampleDetail(t, "attendre la facture")))
 
-	if !strings.Contains(html, "Copier la solution") {
-		t.Errorf("libellé du bloc copier absent")
-	}
-	if !strings.Contains(html, "data-copy-target") {
-		t.Errorf("bouton copier sans data-copy-target")
-	}
-	if !strings.Contains(html, "<textarea") {
-		t.Errorf("source presse-papiers (textarea) absente")
-	}
-	if !strings.Contains(html, "data-copy-done") {
-		t.Errorf("libellé du succès (data-copy-done) absent")
-	}
-	if !strings.Contains(html, "1500") {
-		t.Errorf("durée du feedback (1500 ms) absente du script copier")
-	}
-}
-
-// TestSolutionText : le texte copié est prêt-à-coller (ServiceNow) :
-// en-tête KB + module, symptôme, contexte, étapes, lien ServiceNow.
-func TestSolutionText(t *testing.T) {
-	k := sampleKB(t, "KB06644754", "mm", true)
-	k.Resolution = "relancer la facture"
-
-	got := solutionText(k)
-	for _, want := range []string{
-		"KB06644754",
-		"SAP MM",
-		"prix modifié interdit",
-		"relancer la facture",
-		serviceNowURL("KB06644754"),
+	for _, absent := range []string{
+		"Copier la solution",
+		"data-copy-target",
+		"data-copy-done",
+		"grz-copy",
+		"<textarea",
 	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("solutionText() sans %q:\n%s", want, got)
+		if strings.Contains(html, absent) {
+			t.Errorf("traces du bloc copier encore rendues dans le panel: %q", absent)
 		}
 	}
 }
@@ -180,17 +154,16 @@ func TestDrawerAnchors(t *testing.T) {
 	}
 }
 
-// TestDetailPageCopyBlock : la page détail historique porte aussi le bloc
-// copier + son script (même comportement que le tiroir).
-func TestDetailPageCopyBlock(t *testing.T) {
+// TestDetailPageCopyBlockRemoved : la page détail historique ne porte plus
+// le bloc copier ni son script presse-papiers.
+func TestDetailPageCopyBlockRemoved(t *testing.T) {
 	k := sampleKB(t, "KB06644754", "mm", true)
 	k.Resolution = "relancer la facture"
 	html := renderedPage(t, PageKBDetail("/kb/detail", dto.KBDetail{KB: k, KnownIDs: []string{k.ID}}))
 
-	if !strings.Contains(html, "Copier la solution") {
-		t.Errorf("bloc copier absent de la page détail")
-	}
-	if !strings.Contains(html, "1500") {
-		t.Errorf("script copier absent de la page détail")
+	for _, absent := range []string{"Copier la solution", "grz-copy", "data-copy-target"} {
+		if strings.Contains(html, absent) {
+			t.Errorf("traces du bloc copier encore rendues dans la page détail: %q", absent)
+		}
 	}
 }

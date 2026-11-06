@@ -78,8 +78,9 @@ func TestLayoutInjectsGlancePalette(t *testing.T) {
 	if !strings.Contains(html, "background-color: var(--g-bg)") {
 		t.Errorf("couleur de fond du body non liée aux tokens")
 	}
-	if !strings.Contains(html, "#0b0f17") {
-		t.Errorf("hex de fond obsidienne du thème sombre absent du style body")
+	// Le :root déclare le fond du thème sombre (source : palette.go)
+	if !strings.Contains(html, paletteDark["g-bg"]) {
+		t.Errorf("hex de fond du thème sombre (%s) absent du style body", paletteDark["g-bg"])
 	}
 }
 
@@ -98,10 +99,10 @@ func TestLayoutBodyStyleSheet(t *testing.T) {
 		t.Fatalf("élément <style> non fermé")
 	}
 	css := html[start : start+end]
-	// Fond obsidienne : la feuille inline porte les variables de thème
-	// (:root dark = valeur de référence) et le body les consomme.
-	if !strings.Contains(css, "--g-bg:#0b0f17") {
-		t.Errorf("le fond obsidienne (#0b0f17) n'est pas déclaré dans les var du thème")
+	// La feuille inline porte les variables de thème (:root dark =
+	// valeur de référence, source palette.go) et le body les consomme.
+	if !strings.Contains(css, "--g-bg:"+paletteDark["g-bg"]) {
+		t.Errorf("le fond du thème sombre (%s) n'est pas déclaré dans les var du thème", paletteDark["g-bg"])
 	}
 	if !strings.Contains(css, "background-color: var(--g-bg)") {
 		t.Errorf("le body ne consomme pas var(--g-bg)")
