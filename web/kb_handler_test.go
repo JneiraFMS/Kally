@@ -400,8 +400,8 @@ func TestKBHandlerHomeFiltersByTag(t *testing.T) {
 	if strings.Contains(body, "KB-0002") {
 		t.Errorf("Home(filter kpi) affiche KB-0002 hors filtre")
 	}
-	if !strings.Contains(body, "Filtré par") {
-		t.Errorf("Home(filter kpi) n'affiche pas le tag de filtre actif")
+	if !strings.Contains(body, "aria-pressed=") {
+		t.Errorf("Home(filter kpi) : le tag de filtre actif doit être un bouton segmenté (aria-pressed)")
 	}
 
 	// Sans filtre : toutes les KB

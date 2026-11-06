@@ -204,7 +204,7 @@ func TestMarkdownCodeCopyScript(t *testing.T) {
 }
 
 // TestMarkdownCodeCopyThemeStyles : le bouton et son espace réservé utilisent
-// les tokens Solarized, de sorte que le contrôle suive le thème actif.
+// les tokens du thème, de sorte que le contrôle suive le thème actif.
 func TestMarkdownCodeCopyThemeStyles(t *testing.T) {
 	html := renderedPage(t, layout("T", "/", nil))
 	for _, want := range []string{

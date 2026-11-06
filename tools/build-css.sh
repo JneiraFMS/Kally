@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build-css.sh — régénère web/static/tailwind.css (classes Tailwind utilisées
-# dans les sources Go + palette Solarized de tailwind.config.js) puis
+# dans les sources Go + palette Kally de tailwind.config.js) puis
 # l'embarque dans le binaire via go:embed (web/assets.go).
 #
 # Usage : ./tools/build-css.sh [--watch]

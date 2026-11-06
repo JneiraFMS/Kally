@@ -11,6 +11,13 @@ import (
 // déjà rendu par le serveur : il est instantané, sans requête réseau ni
 // re-rendu HTML — plus rapide que tout serveur.
 //
+// Défi d'éléments dupliqués : la page d'accueil contient DEUX blocs
+// [data-search] par KB (une carte et une ligne de tableau). Chaque KB doit
+// être comptée une seule fois : chaque élément est rattaché à son
+// conteneur [data-fuzzy-view] (grille ou tableau) et seuls les éléments
+// des vues visibles comptent dans « n/total ». Sans conteneur (journal),
+// closest() retourne nil : élément compté, comportement historique inchangé.
+//
 // Markup déclaratif : le champ porte data-fuzzy et déclare ses acolytes :
 //   - data-fuzzy-count      : id du compte « n/total »,
 //   - data-fuzzy-no-results : id du bloc « aucun résultat » (caché/default),
@@ -70,13 +77,27 @@ function fnFuzzyScore(query, text) {
 	return qi < query.length ? -1 : score;
 }
 
+// inVisibleView : l'élément fait vivre la vue active (il doit être
+// compté/trié) — rattachable à un conteneur data-fuzzy-view visible ou
+// sans conteneur (journal : compté).
+function inVisibleView(el) {
+	var host = el.closest("[data-fuzzy-view]");
+	return !host || !host.classList.contains("hidden");
+}
+
 function run() {
 	var q = input.value.trim().toLowerCase();
 	if (cards === null) collect();
 
-	var shown = 0, total = cards.length;
+	var shown = 0, total = 0;
 	for (var i = 0; i < cards.length; i++) {
 		var c = cards[i];
+		if (!inVisibleView(c.el)) {
+			// Vue inactive : l'affichage ne la court-circuite pas — caché
+			// avec sa vue, remis au prochain passage.
+			continue;
+		}
+		total++;
 		var score = q === "" ? 1 : fnFuzzyScore(q, c.text);
 		var show = score >= 0;
 		c.el.classList.toggle("hidden", !show);
@@ -120,29 +141,89 @@ input.addEventListener("keydown", function (e) {
 });
 
 input.addEventListener("input", run);
-})();
-`
+})();`
 
-// searchField rend une recherche fuzzy déclarative : l'input (marqueur
-// data-fuzzy) et son compteur « n/total » superposé au bord droit. Identique
-// pour l'accueil et le journal : même moteur, même look.
+const viewToggleScript = `/* grz-view */
+(function () {
+"use strict";
+var grid = document.querySelector('[data-fuzzy-view="grid"]');
+var table = document.querySelector('[data-fuzzy-view="table"]');
+if (!grid || !table) return;
+var buttons = document.querySelectorAll("[data-view-target]");
+
+function render(view) {
+	grid.classList.toggle("hidden", view === "table");
+	table.classList.toggle("hidden", view !== "table");
+	for (var i = 0; i < buttons.length; i++) {
+		var b = buttons[i];
+		var pressed = b.getAttribute("data-view-target") === view;
+		b.setAttribute("aria-pressed", pressed ? "true" : "false");
+	}
+}
+
+for (var i = 0; i < buttons.length; i++) {
+	buttons[i].addEventListener("click", function () {
+		var view = this.getAttribute("data-view-target");
+		render(view);
+		try { localStorage.setItem("grz-view", view); } catch (e) {}
+	});
+}
+
+// Préférence mémorisée ouverte, cartes par défaut
+try {
+	if (localStorage.getItem("grz-view") === "table") render("table");
+} catch (e) {}
+})();`
+
+// searchField rend une recherche fuzzy déclarative style command palette :
+// icône loupe à gauche, champ, compteur « n/total » et raccourci « / » à
+// droite. Identique pour l'accueil et le journal : même moteur, même look.
+// L'input reste le marqueur data-fuzzy du moteur (attributs inchangés).
 func searchField(inputID, countID, noResultsID, placeholder, emptyLabel string, reorder bool) gomponents.Node {
-	return Div(Class("relative"),
+	return Div(Class("relative max-w-2xl"),
+		// Loupe décorative : aria-hidden, l'input porte son propre label
+		searchIconSVG(),
 		Input(
 			ID(inputID),
 			Type("search"),
 			AutoComplete("off"),
 			Placeholder(placeholder),
-			Class("w-full px-4 py-2.5 rounded-lg bg-g-block border border-g-border text-g-hi placeholder-g-text focus:border-g-accent outline-none transition"),
+			Class("w-full pl-10 pr-24 py-2.5 rounded-xl bg-g-widget border border-g-border text-g-hi placeholder-g-text focus:border-g-cyan focus:outline-none transition"),
 			gomponents.Attr("data-fuzzy"),
 			gomponents.Attr("data-fuzzy-count", countID),
 			gomponents.Attr("data-fuzzy-no-results", noResultsID),
 			gomponents.Attr("data-fuzzy-empty", emptyLabel),
 			gomponents.If(reorder, gomponents.Attr("data-fuzzy-order")),
 		),
-		Span(ID(countID),
-			Class("absolute right-3 top-1/2 -translate-y-1/2 font-mono text-xs text-g-text pointer-events-none"),
-			gomponents.Text(""),
+		// Accolades à droite : compteur live puis raccourci clavier
+		Span(Class("absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 pointer-events-none"),
+			Span(ID(countID), Class("font-mono text-xs text-g-text"), gomponents.Text("")),
+			gomponents.El("kbd",
+				Class("rounded border border-g-border bg-g-block px-1.5 py-0.5 font-mono text-[10px] text-g-text"),
+				gomponents.Text("/"),
+			),
+		),
+	)
+}
+
+// searchIconSVG : la loupe de la command palette (décorative, posée à
+// gauche du champ par la règle .fuzzy-loupe du style inline).
+func searchIconSVG() gomponents.Node {
+	return gomponents.El("svg",
+		Class("fuzzy-loupe"),
+		gomponents.Attr("viewBox", "0 0 24 24"),
+		gomponents.Attr("width", "16"),
+		gomponents.Attr("height", "16"),
+		gomponents.Attr("aria-hidden", "true"),
+		gomponents.Attr("fill", "none"),
+		gomponents.El("circle",
+			gomponents.Attr("cx", "11"), gomponents.Attr("cy", "11"), gomponents.Attr("r", "7"),
+			gomponents.Attr("stroke", "currentColor"), gomponents.Attr("stroke-width", "2"),
+		),
+		gomponents.El("path",
+			gomponents.Attr("d", "M20 20l-3.5-3.5"),
+			gomponents.Attr("stroke", "currentColor"), gomponents.Attr("stroke-width", "2"),
+			gomponents.Attr("stroke-linecap", "round"),
 		),
 	)
 }
@@ -165,4 +246,10 @@ func noResultsBlock(blockID, containerClass string) gomponents.Node {
 // après les éléments filtrables.
 func searchScriptNode() gomponents.Node {
 	return gomponents.El("script", gomponents.Raw(fuzzyScript))
+}
+
+// viewToggleScriptNode retourne l'élément <script> de la bascule vue,
+// injecté avec le tableau (inutile quand il n'y a pas de cartes).
+func viewToggleScriptNode() gomponents.Node {
+	return gomponents.El("script", gomponents.Raw(viewToggleScript))
 }

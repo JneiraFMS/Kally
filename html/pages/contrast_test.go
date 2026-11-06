@@ -56,6 +56,9 @@ func TestPaletteContrast(t *testing.T) {
 		{"danger sur bloc", "g-negative-text", "g-block"},
 		{"danger sur carte", "g-negative-text", "g-widget"},
 		{"danger sur fond", "g-negative-text", "g-bg"},
+		{"validation sur bloc", "g-positive-text", "g-block"},
+		{"validation sur carte", "g-positive-text", "g-widget"},
+		{"validation sur fond", "g-positive-text", "g-bg"},
 		{"encre sur accent", "g-ink", "g-accent"},
 		{"texte sur code", "g-hi", "g-code"},
 		{"mot-clé sur code", "g-syn-keyword", "g-code"},
@@ -92,9 +95,12 @@ func TestPaletteContrast(t *testing.T) {
 	}
 }
 
-// TestCodeSurfaceDistinctFromWidget : le fond du code doit se détacher de la
-// carte qui le contient. Avant correctif, `.md code`/`.md pre` réutilisaient
-// g-widget — donc exactement le fond de la carte : ratio 1:1, code invisible.
+// TestCodeSurfaceDistinctFromWidget : le fond du code doit se détacher de
+// la carte qui le contient. Une panne réelle : `.md code`/`.md pre`
+// réutilisaient g-widget — le code était invisible. Dans le canon
+// « obsidienne » (comme en clair), la surface de code est une couche PLUS
+// PROFONDE que la carte : on vérifie l'orientation de la profondeur et un
+// écart minimum (le filet var(--g-border) complète la délimitation).
 func TestCodeSurfaceDistinctFromWidget(t *testing.T) {
 	themes := []struct {
 		name string
@@ -115,17 +121,14 @@ func TestCodeSurfaceDistinctFromWidget(t *testing.T) {
 			t.Errorf("%s : token g-widget absent de la palette", theme.name)
 			continue
 		}
-		if code == widget {
-			t.Errorf("%s : g-code == g-widget (%s), le fond du code reste invisible", theme.name, code)
+		lumCode := relativeLuminance(code)
+		lumWidget := relativeLuminance(widget)
+		if code == widget || lumCode >= lumWidget {
+			t.Errorf("%s : g-code (%s) pas plus profond que g-widget (%s), le fond du code se confond avec la carte", theme.name, code, widget)
 			continue
 		}
-		// En thème sombre la surface de code est franchement plus claire que
-		// la carte (>= 1.4:1). En thème clair l'écart est volontairement
-		// faible (base3 sur base2) : la délimitation vient du liseré.
-		if theme.name == "dark" {
-			if got := contrastRatio(code, widget); got < 1.4 {
-				t.Errorf("dark : contraste code/carte = %.2f:1, want >= 1.4:1", got)
-			}
+		if got := contrastRatio(code, widget); got < 1.03 {
+			t.Errorf("%s : contraste code/carte = %.2f:1, want >= 1.03:1 (couches indistinguables)", theme.name, got)
 		}
 	}
 }
@@ -137,7 +140,7 @@ func TestPaletteContrastHelper(t *testing.T) {
 	if got := contrastRatio("#000000", "#ffffff"); math.Abs(got-21) > 0.01 {
 		t.Errorf("contraste noir/blanc = %.2f, want 21", got)
 	}
-	if got := contrastRatio("#b58900", "#b58900"); math.Abs(got-1) > 0.001 {
+	if got := contrastRatio("#7f8c99", "#7f8c99"); math.Abs(got-1) > 0.001 {
 		t.Errorf("contraste identique = %.2f, want 1", got)
 	}
 }

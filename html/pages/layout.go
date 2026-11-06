@@ -75,15 +75,35 @@ button.addEventListener("click", function () {
 });
 })();`
 
-// glanceBodyStyle : style global du corps (fond Solarized + typo + focus
+// glanceBodyStyle : style global du corps (fond obsidienne + typo + focus
 // clavier visible) et styles markdown des fiches (.md) — consommés via les
 // var(--g-*). La feuille des classes utilitaires, générée hors-ligne par
 // tools/build-css.sh, est servie à /assets/tailwind.css.
 const glanceBodyStyle = `html { scrollbar-gutter: stable; }
+/* Polices variables self-hosted (web/assets/fonts via go:embed, servies à
+   /assets/fonts/) : Plus Jakarta Sans (corps) et JetBrains Mono
+   (identifiants, T-codes, compteurs). font-display: swap : le texte
+   s'affiche immédiatement en stack système puis bascule. */
+@font-face {
+	font-family: "Plus Jakarta Sans";
+	src: url("/assets/fonts/plus-jakarta-sans.woff2") format("woff2");
+	font-weight: 200 800;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: "JetBrains Mono";
+	src: url("/assets/fonts/jetbrains-mono.woff2") format("woff2");
+	font-weight: 100 800;
+	font-style: normal;
+	font-display: swap;
+}
+/* Famille des polices : la config Tailwind générée par le script de build
+   produit les mêmes stacks pour font-sans / font-mono. */
 body {
 	background-color: var(--g-bg);
 	color: var(--g-text);
-	font: 14px/1.6 ui-sans-serif, system-ui, sans-serif;
+	font: 14px/1.6 "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 	-webkit-font-smoothing: antialiased;
 }
 ::selection { background: rgba(178, 137, 0, 0.30); }
@@ -98,6 +118,14 @@ input.field-error:focus-visible, textarea.field-error:focus-visible {
 	outline: 2px solid var(--g-negative-text);
 	outline-offset: 2px;
 }
+/* Loupe de la barre de recherche (command palette) : décorative, posée à
+   gauche du champ — la classe .fuzzy-loupe vient avec le svg. */
+.fuzzy-loupe {
+	position: absolute; z-index: 1; left: 0.75rem; top: 50%;
+	transform: translateY(-50%);
+	color: var(--g-muted); pointer-events: none;
+}
+
 /* Bouton de bascule de thème, dans la navbar : la zone cliquable vient des
    classes utilitaires (px-2 py-3), la règle ne doit pas écraser le padding. */
 #theme-toggle {
@@ -121,7 +149,7 @@ input.field-error:focus-visible, textarea.field-error:focus-visible {
 .md h2 { font-size: 1.05rem; font-weight: 600; color: var(--g-hi); margin: 0.5rem 0 0.25rem; }
 .md h3 { font-size: 0.95rem; font-weight: 600; color: var(--g-hi); margin: 0.5rem 0 0.25rem; }
 .md code {
-	font: 12px ui-monospace, SFMono-Regular, monospace;
+	font: 12px "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 	color: var(--g-hi); background: var(--g-code);
 	padding: 0.1rem 0.3rem; border-radius: 0.25rem;
 }
@@ -129,7 +157,7 @@ input.field-error:focus-visible, textarea.field-error:focus-visible {
 	background: var(--g-code); color: var(--g-hi);
 	border: 1px solid var(--g-border);
 	border-radius: 0.5rem; padding: 0.75rem 1rem; margin: 0.5rem 0;
-	font: 12px/1.5 ui-monospace, SFMono-Regular, monospace;
+	font: 12px/1.5 "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 	/* Page détail : les longues lignes se replient, jamais de barre
 	   de défilement horizontale. */
 	white-space: pre-wrap; overflow-wrap: anywhere;
@@ -206,7 +234,7 @@ input.field-error:focus-visible, textarea.field-error:focus-visible {
 .chroma-err, .chroma-w { color: var(--g-syn-error); }`
 
 // layout assemble la structure HTML commune (head, scripts, navbar)
-// avec le thème Solarized commutable (dark par défaut).
+// avec le thème Kally commutable (obsidienne par défaut).
 func layout(title string, currentPath string, content []gomponents.Node) gomponents.Node {
 	return components.HTML5(components.HTML5Props{
 		Title:    title,
@@ -222,7 +250,8 @@ func layout(title string, currentPath string, content []gomponents.Node) gompone
 			Script(Src("https://unpkg.com/htmx.org@1.9.10")), // Pour soumettre sans recharger
 		},
 		Body: []gomponents.Node{
-			elements.NavbarCustom(navElements, currentPath),
+			elements.NavbarCustom(navElements, currentPath,
+				elements.NavbarPrimary{Label: "Créer une KB", Href: "/kb/new"}),
 			// Bascule clair/sombre (script câblé après la navbar)
 			gomponents.El("script", gomponents.Raw(themeToggleScript)),
 			gomponents.Group(content),

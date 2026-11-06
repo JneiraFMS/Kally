@@ -296,6 +296,30 @@ func (h *KBHandler) Detail(w http.ResponseWriter, r *http.Request) {
 	renderNode(w, pages.PageKBDetail(r.URL.Path, detail))
 }
 
+// Panel serves the drawer fragment (GET /kb/panel?id=…): it reuses the
+// Detail use case but renders the standalone panel fragment instead of the
+// full page — the drawer shell owns the page structure and scripts. A
+// well-formed but unknown ID is 404, a malformed ID is 400 (no filesystem
+// read ever happens).
+func (h *KBHandler) Panel(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if err := domainkb.ValidateID(id); err != nil {
+		writeMessage(w, http.StatusBadRequest, errorMessage(fmt.Sprintf("Identifiant KB invalide : %q", id)))
+		return
+	}
+
+	detail, err := h.app.Detail(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, domainkb.ErrNotFound) {
+			writeMessage(w, http.StatusNotFound, errorMessage(fmt.Sprintf("KB %q introuvable", id)))
+		} else {
+			writeInternalError(w, err)
+		}
+		return
+	}
+	renderNode(w, pages.PageKBDetailPanel(detail))
+}
+
 func writeMessage(w http.ResponseWriter, status int, node gomponents.Node) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)

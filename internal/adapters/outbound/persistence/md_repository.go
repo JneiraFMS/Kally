@@ -131,6 +131,14 @@ func (r *MDRepository) read(id string) (*domainkb.KB, error) {
 		return nil, fmt.Errorf("kb md: lecture %s: %w", id, err)
 	}
 	item := parseMarkdown(id, string(data))
+
+	// Heure de dernière modification du fichier (mémoire de stockage, hors
+	// format : rien n'est sérialisé dans le .md). Une stat qui échoue (ex:
+	// fichier retiré entre ReadFile et Stat) laisse le champ à zéro — la
+	// présentation sait masquer une date absente.
+	if fi, statErr := os.Stat(r.path(id)); statErr == nil {
+		item.Modified = fi.ModTime()
+	}
 	return &item, nil
 }
 

@@ -11,7 +11,14 @@ type NavbarElements struct {
 	Href  string
 }
 
-// logoSVG est la marque GRZ : un petit graphe de KB liées — nœud central
+// NavbarPrimary est l'action principale de la navbar (CTA, zone droite).
+// Zéro ⇔ pas de CTA rendu.
+type NavbarPrimary struct {
+	Label string
+	Href  string
+}
+
+// logoSVG est la marque Kally : un petit graphe de KB liées — nœud central
 // accentué (g-accent, suit le thème), satellites et arêtes en currentColor
 // (la couleur du texte du lien qui l'enveloppe).
 func logoSVG() gomponents.Node {
@@ -50,54 +57,81 @@ func logoSVG() gomponents.Node {
 	)
 }
 
-// NavbarCustom : barre de navigation minimaliste — logo à gauche (vers
-// l'accueil), items de nav au centre, bascule clair/sombre à droite,
-// item actif souligné d'un fin trait jaune.
-func NavbarCustom(elementList []NavbarElements, currentPath string) gomponents.Node {
+// NavbarCustom : barre de navigation à trois zones sur une seule ligne
+// (h-16), adossée à un filet bas fin :
+//  1. marque    — constellation SVG liée à l'accueil, wordmark « Kally »
+//     et sous-titre monospace miniature « KNOWLEDGE BASE » ;
+//  2. navigation — liens textuels (text-sm font-medium), item actif
+//     souligné d'un filet fin thématisé ;
+//  3. actions    — bascule clair/sombre (comportement scripté par le
+//     layout) et CTA primaire plein accent (NavbarPrimary zéro ⇔ pas de
+//     CTA).
+func NavbarCustom(elementList []NavbarElements, currentPath string, primary NavbarPrimary) gomponents.Node {
 	var navItems []gomponents.Node
 
 	for _, item := range elementList {
 		isActive := item.Href == currentPath
-		linkClass := "relative py-3 text-g-text hover:text-g-hi transition-colors"
+		linkClass := "relative py-2 text-g-text hover:text-g-hi transition-colors text-sm font-medium"
 		if isActive {
-			// Soulignement fin jaune sous l'item actif
-			linkClass = "relative py-3 text-g-hi font-medium after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-g-accent after:content-['']"
+			// Soulignement fin thématisé sous l'item actif
+			linkClass = "relative py-2 text-g-hi font-medium text-sm after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-g-accent after:content-['']"
 		}
 
-		navItems = append(navItems, Li(
-			A(
-				Href(item.Href),
-				Class(linkClass),
-				gomponents.Text(item.Label),
-			),
+		navItems = append(navItems, A(
+			Href(item.Href),
+			Class(linkClass),
+			gomponents.Text(item.Label),
 		))
 	}
 
-	return Nav(Class("bg-g-widget"),
-		Div(Class("max-w-5xl mx-auto px-6 flex items-center justify-between"),
-			// Logo GRZ — cellule de largeur fixe pour que sa position ne
-			// bouge jamais quelle que soit la page
-			Div(Class("flex items-center w-10 shrink-0"),
-				A(Href("/"),
-					Class("py-3 flex items-center text-g-hi hover:opacity-80 transition-opacity"),
-					gomponents.Attr("aria-label", "Accueil"),
-					logoSVG(),
+	// Zone 3 : bascule de thème + CTA primaire
+	actions := []gomponents.Node{
+		Button(
+			Type("button"),
+			ID("theme-toggle"),
+			gomponents.Attr("aria-label", "Changer de thème"),
+			Class("px-2 py-3"),
+			gomponents.Text("◐"),
+		),
+	}
+	if primary.Label != "" && primary.Href != "" {
+		actions = append(actions,
+			A(Href(primary.Href),
+				Class("hidden sm:inline-block px-4 py-2 rounded-lg text-g-ink bg-g-accent hover:brightness-110 text-xs font-semibold shadow-sm transition"),
+				gomponents.Text(primary.Label),
+			),
+		)
+	}
+
+	return Nav(
+		Class("w-full border-b border-g-border bg-g-widget"),
+		Div(Class("max-w-5xl mx-auto px-6 h-16 flex items-center justify-between"),
+			// Zone 1 : marque — constellation + wordmark + sous-titre mono,
+			// regroupés en un seul bloc (le row distribue exactement 3 zones).
+			// La cellule logo garde sa largeur fixe : sa position ne bouge
+			// jamais quelle que soit la page.
+			Div(Class("flex items-center gap-2.5"),
+				Div(Class("flex items-center w-10 shrink-0"),
+					A(Href("/"),
+						Class("flex items-center text-g-hi hover:opacity-80 transition-opacity"),
+						gomponents.Attr("aria-label", "Accueil"),
+						logoSVG(),
+					),
+				),
+				Span(Class("block text-sm font-semibold leading-tight text-g-hi"),
+					gomponents.Text("Kally"),
+				),
+				Span(Class("hidden sm:block font-mono text-[9px] uppercase tracking-[0.2em] leading-tight text-g-text"),
+					gomponents.Text("KNOWLEDGE BASE"),
 				),
 			),
-			Div(Class("flex items-center gap-6"),
-				Ol(
-					Class("flex items-center gap-6 text-sm font-medium list-none"),
-					gomponents.Group(navItems),
-				),
-				// Bascule clair/sombre (comportement : themeToggleScript)
-				Button(
-					Type("button"),
-					ID("theme-toggle"),
-					gomponents.Attr("aria-label", "Changer de thème"),
-					Class("px-2 py-3"),
-					gomponents.Text("◐"),
-				),
+			// Zone 2 : navigation textuelle
+			Ol(
+				Class("flex items-center gap-6 text-sm font-medium list-none"),
+				gomponents.Group(navItems),
 			),
+			// Zone 3 : actions (thème + CTA)
+			Div(Class("flex items-center gap-3"), gomponents.Group(actions)),
 		),
 	)
 }

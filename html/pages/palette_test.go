@@ -19,70 +19,75 @@ var themeTokenNames = []string{
 	"g-bg", "g-widget", "g-block", "g-hover", "g-border", "g-sep",
 	"g-code", "g-accent", "g-accent-dim", "g-accent-text", "g-cyan",
 	"g-hi", "g-text", "g-base", "g-muted", "g-subdue", "g-negative",
-	"g-negative-text", "g-positive", "g-ink",
+	"g-negative-text", "g-positive", "g-positive-text", "g-ink",
 	"g-syn-keyword", "g-syn-string", "g-syn-comment", "g-syn-error",
 }
 
-// wantPaletteValues : valeurs Canonique attendues du thème dark (la base
-// actuelle, Solarized dark) — dérive interdite.
+// wantPaletteValues : valeurs canoniques attendues du thème dark (la base
+// actuelle : fond type Dracula, cartes #21222c, accent pourpre #bd93f9) —
+// dérive interdite. g-code est une couche PLUS PROFONDE que la carte ;
+// g-negative-text / g-ink / g-syn-comment sont les variantes calibrées
+// AA (>= 4.5:1) de leurs tons bruts.
 var wantPaletteValues = map[string]string{
-	"g-bg":            "#002b36",
-	"g-widget":        "#073642",
-	"g-block":         "#12373f",
-	"g-hover":         "#214c56",
-	"g-border":        "#1b444f",
-	"g-sep":           "#28515a",
-	"g-code":          "#24545e",
-	"g-accent":        "#b58900",
-	"g-accent-dim":    "#0c464f",
-	"g-accent-text":   "#d7ad4a",
-	"g-cyan":          "#2aa198",
-	"g-hi":            "#eee8d5",
-	"g-text":          "#93a1a1",
-	"g-base":          "#839496",
-	"g-muted":         "#657b83",
-	"g-subdue":        "#586e75",
-	"g-negative":      "#dc322f",
-	"g-negative-text": "#f08b88",
-	"g-positive":      "#859900",
-	"g-ink":           "#002b36",
+	"g-bg":            "#282a36", // Background
+	"g-widget":        "#21222c", // carte
+	"g-block":         "#343746", // surface secondaire
+	"g-hover":         "#44475a", // Current Line / Hover
+	"g-border":        "#44475a", // filet
+	"g-sep":           "#6272a4", // separator
+	"g-code":          "#17181f", // code : couche profonde
+	"g-accent":        "#bd93f9", // Purple
+	"g-accent-dim":    "#443653", // Purple muted
+	"g-accent-text":   "#bd93f9", // Purple text
+	"g-cyan":          "#8be9fd", // focus ring
+	"g-hi":            "#f8f8f2", // Foreground
+	"g-text":          "#e0e0e0", // Main text
+	"g-base":          "#f8f8f2", // Base text
+	"g-muted":         "#a6a6b3", // Muted text (décoratif)
+	"g-subdue":        "#6272a4", // Subdued text (décoratif)
+	"g-negative":      "#ff5555", // Red
+	"g-negative-text": "#ff7d7d", // Light red AA sur g-block
+	"g-positive":      "#50fa7b", // Green
+	"g-positive-text": "#69ff94", // Light green
 
-	"g-syn-keyword": "#c3d96b",
-	"g-syn-string":  "#7ed3c9",
-	"g-syn-comment": "#b9c6c6",
-	"g-syn-error":   "#f6b0ad",
+	"g-ink": "#282a36", // encre sombre sur l'accent pourpre (AA)
+
+	"g-syn-keyword": "#ff79c6",
+	"g-syn-string":  "#f1fa8c",
+	"g-syn-comment": "#7c87b8",
+	"g-syn-error":   "#ff5555",
 }
 
-// wantLightValues : mode clair Solarized Light — échelle inversée canonique
-// (fond base3, textes base01/base00) ; accents identiques au mode sombre ;
-// les 4 tons intermédiaires (block/hover/border/sep) sont des dérivés
-// blanchâtres, à valider par capture d'écran.
+// wantLightValues : mode clair — fond quasi-blanc, cartes blanches,
+// accents assombris pour la lisibilité (>= 4.5:1 sur les surfaces claires).
 var wantLightValues = map[string]string{
-	"g-bg":            "#fdf6e3",
-	"g-widget":        "#eee8d5",
-	"g-block":         "#e9e4d0",
-	"g-hover":         "#ded9c2",
-	"g-border":        "#d6d0b9",
-	"g-sep":           "#c8c29f",
-	"g-code":          "#fdf6e3",
-	"g-accent":        "#b58900",
-	"g-accent-dim":    "#f5ecc9",
-	"g-accent-text":   "#7a5c00",
-	"g-cyan":          "#2aa198",
-	"g-hi":            "#073642",
-	"g-text":          "#52686f",
-	"g-base":          "#657b83",
-	"g-muted":         "#839496",
-	"g-subdue":        "#93a1a1",
-	"g-negative":      "#dc322f",
-	"g-negative-text": "#a0211e",
-	"g-positive":      "#859900",
-	"g-ink":           "#002b36",
+	"g-bg":            "#fcfcfd",
+	"g-widget":        "#ffffff",
+	"g-block":         "#f1f0f7",
+	"g-hover":         "#e8e6f0",
+	"g-border":        "#e0deeb",
+	"g-sep":           "#c8c5d8",
+	"g-code":          "#f1f0f7",
+	"g-accent":        "#8657c9", // pourpre assombri : encre blanche AA
+	"g-accent-dim":    "#eee5ff",
+	"g-accent-text":   "#7044b8",
+	"g-cyan":          "#008fb2",
+	"g-hi":            "#282a36",
+	"g-text":          "#44475a",
+	"g-base":          "#343746",
+	"g-muted":         "#77778b",
+	"g-subdue":        "#a6a6b3",
+	"g-negative":      "#d83b52",
+	"g-negative-text": "#b52b43",
+	"g-positive":      "#168b55",
+	"g-positive-text": "#087443",
 
-	"g-syn-keyword": "#5c6a00",
-	"g-syn-string":  "#0f6f68",
-	"g-syn-comment": "#52686f",
-	"g-syn-error":   "#a0211e",
+	"g-ink": "#ffffff",
+
+	"g-syn-keyword": "#a626a4",
+	"g-syn-string":  "#136f34",
+	"g-syn-comment": "#5f5f74",
+	"g-syn-error":   "#b02b41",
 }
 
 // TestThemePalettes : les deux palettes couvrent exactement les mêmes
@@ -133,8 +138,8 @@ func TestGeneratedStylesheetUsesVars(t *testing.T) {
 		t.Fatalf("web/static/tailwind.css introuvable (lancer tools/build-css.sh): %v", err)
 	}
 	css := string(data)
-	if strings.Contains(css, "002b36") {
-		t.Errorf("feuille générée avec hex Solarized en dur : le mode clair ne peut pas s'appliquer")
+	if strings.Contains(css, "0b0f17") {
+		t.Errorf("feuille générée avec hex de fond en dur : le mode clair ne peut pas s'appliquer")
 	}
 	for _, rule := range []string{"--g-widget", "var(--g-hi)", ".font-mono", ".hidden"} {
 		if !strings.Contains(css, rule) {
