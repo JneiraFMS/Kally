@@ -271,8 +271,14 @@ func TestPageKBDetailHasDeleteAction(t *testing.T) {
 	if !strings.Contains(html, `name="id" value="KB-0001"`) {
 		t.Errorf("champ caché id du formulaire de suppression manquant")
 	}
-	if !strings.Contains(html, "hx-confirm") {
-		t.Errorf("confirmation htmx de suppression manquante")
+	// Confirmation UNIQUE et native (dialogue du navigateur), valable avec
+	// comme sans htmx — hx-confirm en doublon demandait deux confirmations
+	// quand htmx est actif (le dialogue natif s'exécute au dispatch).
+	if !strings.Contains(html, `onsubmit`) || !strings.Contains(html, "confirm") {
+		t.Errorf("confirmation native de suppression manquante:\n%s", html)
+	}
+	if strings.Contains(html, "hx-confirm") {
+		t.Errorf("double confirmation htmx indue (dialogue natif déjà posé)")
 	}
 	if !strings.Contains(html, ">Supprimer</button>") {
 		t.Errorf("bouton Supprimer manquant")

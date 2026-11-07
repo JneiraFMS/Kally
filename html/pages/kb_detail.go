@@ -55,15 +55,18 @@ func PageKBDetail(currentPath string, detail dto.KBDetail) gomponents.Node {
 }
 
 // deleteButton est le bouton de suppression d'une KB : formulaire natif
-// POST /kb/delete (fonctionne sans JavaScript), confirmation fournie par
-// htmx (hx-confirm) quand il est actif. Style danger : texte rouge.
+// POST /kb/delete (fonctionne sans JavaScript), confirmation par le
+// dialogue natif du navigateur (onsubmit + confirm) — un seul dialogue,
+// avec comme sans htmx (hx-confirm en doublon en demandait deux quand
+// htmx intercepte le submit). Style danger : texte rouge.
 func deleteButton(id string) gomponents.Node {
 	return Form(
 		Action("/kb/delete"),
 		Method("post"),
 		gomponents.Attr("hx-post", "/kb/delete"),
-		gomponents.Attr("hx-confirm", "Supprimer définitivement "+id+" ?"),
 		gomponents.Attr("hx-disabled-elt", "find button"),
+		// La valeur est échappée par gomponents (attribut sûr).
+		gomponents.Attr("onsubmit", "return window.confirm('Supprimer définitivement "+id+" ?')"),
 		Class("mx-2 mb-1"),
 		Input(Type("hidden"), Name("id"), Value(id)),
 		Button(Type("submit"),

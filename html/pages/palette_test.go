@@ -63,11 +63,11 @@ var wantPaletteValues = map[string]string{
 var wantLightValues = map[string]string{
 	"g-bg":            "#fcfcfd",
 	"g-widget":        "#ffffff",
-	"g-block":         "#f1f0f7",
-	"g-hover":         "#e8e6f0",
-	"g-border":        "#e0deeb",
-	"g-sep":           "#c8c5d8",
-	"g-code":          "#f1f0f7",
+	"g-block":         "#F0F7F7", // surface secondaire (teinte teal claire)
+	"g-hover":         "#e6eff0",
+	"g-border":        "#e1ebde",
+	"g-sep":           "#c8d8c5",
+	"g-code":          "#f0f7f7",
 	"g-accent":        "#087F8C", // teal : encre blanche AA
 	"g-accent-dim":    "#d5ecea",
 	"g-accent-text":   "#056a5f",

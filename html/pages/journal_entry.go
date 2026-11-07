@@ -62,14 +62,15 @@ func journalNav(page dto.JournalEntryPage) gomponents.Node {
 
 // deleteJournalButton est le bouton de suppression d'une entrée journal :
 // formulaire natif POST /journal/delete (fonctionne sans JavaScript),
-// confirmation fournie par htmx (hx-confirm) quand il est actif.
+// confirmation par le dialogue natif du navigateur (onsubmit + confirm) —
+// un seul dialogue, avec comme sans htmx.
 func deleteJournalButton(date string) gomponents.Node {
 	return Form(
 		Action("/journal/delete"),
 		Method("post"),
 		gomponents.Attr("hx-post", "/journal/delete"),
-		gomponents.Attr("hx-confirm", "Supprimer la note du "+formatDateFR(date)+" ?"),
 		gomponents.Attr("hx-disabled-elt", "find button"),
+		gomponents.Attr("onsubmit", "return window.confirm('Supprimer la note du "+formatDateFR(date)+" ?')"),
 		Class("mx-2 mb-1"),
 		Input(Type("hidden"), Name("date"), Value(date)),
 		Button(Type("submit"),
